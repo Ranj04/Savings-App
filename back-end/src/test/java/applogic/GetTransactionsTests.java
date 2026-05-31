@@ -30,7 +30,7 @@ public class GetTransactionsTests {
     var builder = handler.handleRequest(parsedRequest);
     var res = builder.build();
     Assert.assertEquals(res.status, StatusCodes.OK);
-    Assert.assertEquals(builder.getBody().data.size(), 1);
+    Assert.assertEquals(((java.util.List<?>) builder.getBody().data).size(), 1);
   }
 
 }

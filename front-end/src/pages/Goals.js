@@ -2,9 +2,9 @@ import React from "react";
 import Header from "../components/Header";
 import useFlashMessage from "../hooks/useFlashMessage";
 import InlineNotice from "../components/InlineNotice";
-import { oid, num } from "../utils/oid";
-
-const fmt = v => num(v,0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+import { oid, num, fmt } from "../utils/oid";
+import { api } from "../api/client";
+import { fetchWhoami } from "../api/whoami";
 
 export default function GoalsPage() {
   const [accounts, setAccounts] = React.useState([]);
@@ -12,31 +12,63 @@ export default function GoalsPage() {
   const [accId, setAccId] = React.useState("");
   const [name, setName] = React.useState("");
   const [target, setTarget] = React.useState("");
+  const [error, setError] = React.useState("");
 
   const flash = useFlashMessage(3600);
+
+  // Add one-time console for debugging
+  React.useEffect(() => {
+    console.debug('whoami cookie present?', document.cookie.includes('auth='));
+  }, []);
+
+  // Handle 401 authentication errors locally without redirect
+  const handleAuthError = async (endpoint) => {
+    // Check session health without redirecting yet
+    try {
+      const who = await fetchWhoami();
+      if (who.status === 401) {
+        // real logout; allow ProtectedRoute to handle redirect (don't navigate here)
+        setError('Session expired. Please sign in.');
+        return true; // indicates real logout
+      } else {
+        // transient/handler-level auth hiccup; show inline message and stay
+        setError(`Could not load ${endpoint} right now. Retrying…`);
+        // Optionally retry once after a delay
+        setTimeout(() => reload(), 3000);
+        return false; // indicates transient error
+      }
+    } catch {
+      // Network error during whoami check
+      setError(`Could not load ${endpoint} right now. Retrying…`);
+      setTimeout(() => reload(), 3000);
+      return false;
+    }
+  };
 
   React.useEffect(() => { reload(); }, []);
 
   // --- reload(): normalize account ids robustly ---
   async function reload() {
+    setError(""); // Clear any previous errors
+    
     try {
-      const a = await fetch("/accounts/list", { credentials: "include" });
-      if (a.ok) {
-        const data = await a.json();
-        if (data.success === false) {
-          console.error('Failed to load accounts:', data.message);
-          setAccounts([]);
-          return;
-        }
-        const accountsRaw = Array.isArray(data.data) ? data.data : data.data?.data || data || [];
+      const a = await api('/accounts/list');
+      if (a.status === 401) {
+        await handleAuthError('accounts');
+        return;
+      }
+      if (!a.ok) {
+        console.error('Failed to load accounts:', a.status);
+        setAccounts([]);
+      } else {
+        const body = await a.json();
+        // Accepts either the wrapped shape {status, data:[...]} or a raw array
+        const accountsRaw = Array.isArray(body) ? body : (Array.isArray(body?.data) ? body.data : []);
         const accountsNorm = accountsRaw
           .map(x => ({ _id: oid(x._id) || oid(x.id), name: x.name, balance: num(x.balance,0) }))
           .filter(x => !!x._id);
         setAccounts(accountsNorm);
         setAccId(prev => prev || accountsNorm[0]?._id || "");
-      } else {
-        console.error('Failed to load accounts:', a.status);
-        setAccounts([]);
       }
     } catch (error) {
       console.error('Error loading accounts:', error);
@@ -44,15 +76,18 @@ export default function GoalsPage() {
     }
 
     try {
-      const g = await fetch("/goals/list", { credentials: "include" });
-      if (g.ok) {
-        const data = await g.json();
-        if (data.success === false) {
-          console.error('Failed to load goals:', data.message);
-          setGoals([]);
-          return;
-        }
-        const goalsRaw = Array.isArray(data.data) ? data.data : data.data?.data || [];
+      const g = await api('/goals/list');
+      if (g.status === 401) {
+        await handleAuthError('goals');
+        return;
+      }
+      if (!g.ok) {
+        console.error('Failed to load goals:', g.status);
+        setGoals([]);
+      } else {
+        const body = await g.json();
+        // /goals/list currently returns a raw array; also tolerate a wrapped shape
+        const goalsRaw = Array.isArray(body) ? body : (Array.isArray(body?.data) ? body.data : []);
         const goalsNorm = goalsRaw.map(x => ({
           _id: oid(x._id) || oid(x.id),
           accountId: oid(x.accountId) || oid(x.account?._id),
@@ -61,9 +96,6 @@ export default function GoalsPage() {
           targetAmount: x.targetAmount != null ? num(x.targetAmount) : null,
         }));
         setGoals(goalsNorm);
-      } else {
-        console.error('Failed to load goals:', g.status);
-        setGoals([]);
       }
     } catch (error) {
       console.error('Error loading goals:', error);
@@ -71,7 +103,29 @@ export default function GoalsPage() {
     }
   }
 
-  // --- createGoal(): no more "pick a valid account"; auto-resolve id ---
+  // Helper function to check if a goal exists
+  function goalExists(list, accountName, goalName) {
+    if (!Array.isArray(list)) return false;
+    return list.some(g => {
+      const acc = g.accountName || g.account?.name || '';
+      const name = g.goalName || g.name || '';
+      return acc === accountName && name === goalName;
+    });
+  }
+
+  // Helper function to fetch goals
+  async function fetchGoalsList() {
+    const r = await api('/goals/list');
+    if (r.status === 401) {
+      await handleAuthError('goals');
+      return []; // Return empty array on auth errors
+    }
+    if (!r.ok) throw new Error(String(r.status));
+    const data = await r.json();
+    return Array.isArray(data) ? data : (data?.data || []);
+  }
+
+  // --- createGoal(): resilient to proxy/transport hiccups ---
   async function createGoal(e) {
     e.preventDefault();
 
@@ -84,25 +138,84 @@ export default function GoalsPage() {
       return;
     }
 
-    try {
-      const res = await fetch("/goals/create", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accountId: accountHex,              // plain 24-char string
-          name: name.trim(),
-          targetAmount: target ? Number(target) : null,
-        }),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || j?.success === false) throw new Error(j?.message || j?.error || "Failed to create goal");
+    const accountName = selected?.name || "Unknown Account";
+    const goalName = name.trim();
 
-      flash.flash("success", "Goal created successfully.");
-      setName(""); setTarget("");
-      await reload();
+    try {
+      const result = await createGoalCore({ accountName, goalName });
+      
+      if (result.authError) {
+        if (result.isRealLogout) {
+          // Real logout - ProtectedRoute will handle redirect
+          return;
+        }
+        // Transient error - already handled by handleAuthError
+        return;
+      }
+      
+      if (result.success) {
+        flash.flash("success", result.verified ? 
+          "Goal created successfully (verified after connection issues)." : 
+          "Goal created successfully.");
+        setName(""); 
+        setTarget("");
+        setError(""); // Clear any previous errors
+        await reload();
+      }
     } catch (e) {
       flash.flash("error", e.message || String(e));
+    }
+  }
+
+  // Core goal creation logic
+  async function createGoalCore({ accountName, goalName }) {
+    const res = await api('/goals/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: { accountName, goalName },
+    });
+    
+    if (res.status === 401) {
+      const isRealLogout = await handleAuthError('goals');
+      return { success: false, authError: true, isRealLogout };
+    }
+
+    if (res.ok) {
+      try {
+        const data = await res.json();
+        return data ?? { success: true };
+      } catch {
+        // Empty response body, treat as success
+        return { success: true };
+      }
+    }
+
+    // Dev proxy/transport hiccup: backend may have succeeded even though proxy says 500
+    if (res.status >= 500) {
+      try {
+        const text = await res.text();
+        if (typeof text === 'string' && text.startsWith('Proxy error')) {
+          const list = await fetchGoalsList().catch(() => []);
+          if (goalExists(list, accountName, goalName)) return { success: true, verified: true };
+        }
+      } catch {
+        // Couldn't read response text, continue to error
+      }
+    }
+
+    // Real failure
+    try {
+      const data = await res.json();
+      const msg = (data && (data.message || data.error)) || `Failed (${res.status})`;
+      throw new Error(msg);
+    } catch (parseError) {
+      // If JSON parsing failed, try to get text
+      try {
+        const text = await res.text();
+        throw new Error(text || `Failed (${res.status})`);
+      } catch {
+        throw new Error(`Failed (${res.status})`);
+      }
     }
   }
 
@@ -125,6 +238,7 @@ export default function GoalsPage() {
               <button type="submit" className="btn btn--primary">Create</button>
             </form>
             {flash.text && <InlineNotice kind={flash.kind === "error" ? "error" : flash.kind}>{flash.text}</InlineNotice>}
+            {error && <InlineNotice kind="error">{error}</InlineNotice>}
           </div>
 
           {/* List */}
@@ -153,5 +267,3 @@ export default function GoalsPage() {
     </>
   );
 }
-
-// This gives you a nice “hero” create card, proper spacing, and a clean table.

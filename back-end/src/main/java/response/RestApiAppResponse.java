@@ -7,13 +7,19 @@ import java.util.Map;
 public class RestApiAppResponse<T> {
 
     public final boolean status;
-    public final List<T> data;
+    public final Object data;
     public final String message;
     public final Map<String, Object> properties = new HashMap<>();
 
     public RestApiAppResponse(boolean status, List<T> data, String message) {
         this.status = status;
         this.data = data;
+        this.message = message;
+    }
+
+    public RestApiAppResponse(boolean status, T singleObject, String message) {
+        this.status = status;
+        this.data = singleObject;
         this.message = message;
     }
 
@@ -26,12 +32,6 @@ public class RestApiAppResponse<T> {
     public RestApiAppResponse(boolean status, String message) {
         this.status = status;
         this.data = null;
-        this.message = message;
-    }
-
-    public RestApiAppResponse(boolean status, T single, String message) {
-        this.status = status;
-        this.data = single == null ? null : List.of(single);
         this.message = message;
     }
 

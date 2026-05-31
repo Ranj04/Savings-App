@@ -1,0 +1,16 @@
+{
+  "name": "banking-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Run the Java backend and the React frontend together with a single command.",
+  "scripts": {
+    "start": "concurrently -k -n backend,frontend -c blue,green \"npm:start:backend\" \"npm:start:frontend\"",
+    "dev": "npm start",
+    "start:backend": "mvn -q -f back-end/pom.xml compile exec:java",
+    "start:frontend": "npm --prefix front-end start",
+    "setup": "npm install && npm --prefix front-end install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

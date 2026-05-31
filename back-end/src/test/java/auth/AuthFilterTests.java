@@ -38,6 +38,7 @@ public class AuthFilterTests {
         var authEntry = new AuthDto();
         authEntry.setHash(hash);
         authEntry.setUserName(userName);
+        authEntry.setExpireTime(java.time.Instant.now().getEpochSecond() + 86_400L);
         List<Document> returnList = new ArrayList();
         returnList.add(authEntry.toDocument());
         Mockito.doReturn(returnList).when(testTools.authfindIterable).into(Mockito.any());

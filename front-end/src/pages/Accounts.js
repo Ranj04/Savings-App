@@ -1,8 +1,7 @@
 import React from 'react';
 import Header from '../components/Header';
-
-const idOf = (obj) =>
-  (obj?.id) || (obj?._id?.$oid) || (obj?._id) || (typeof obj === 'string' ? obj : '');
+import { api } from '../api/client';
+import { idOf } from '../utils/oid';
 
 function StackedGoalBar({ balance, goals, account }) {
   const total = Math.max(0, Number(balance || 0));
@@ -131,30 +130,33 @@ export default function Accounts() {
   const [initialBalance, setInitialBalance] = React.useState('');
 
   async function loadTransactions() {
-    const candidates = ['/getTransactions', '/transactions', '/transactions/list'];
+    const candidates = ['/transactions', '/transactions/list'];
     for (const url of candidates) {
       try {
-        const r = await fetch(url, { credentials: 'include' });
+        const r = await api(url);
         if (!r.ok) continue;
-        const j = await r.json();
-        const raw = j?.data || j?.transactions || j || [];
+        const data = await r.json();
+        const raw = data?.data || data?.transactions || data || [];
         if (Array.isArray(raw)) { setTransactions(raw); break; }
-      } catch { /* ignore */ }
+      } catch (error) {
+        console.error(`Error loading transactions from ${url}:`, error);
+        continue;
+      }
     }
   }
 
-  const reload = async () => {
+  const reload = React.useCallback(async () => {
     console.log('Accounts: reload() called');
     // Try rich endpoint first, fall back to basic
     let accountsData = [];
     try {
       console.log('Accounts: Trying /accounts/listWithAllocations...');
-      const r = await fetch('/accounts/listWithAllocations', { credentials: 'include' });
+      const r = await api('/accounts/listWithAllocations');
       console.log('Accounts: listWithAllocations response status:', r.status);
       if (r.ok) {
-        const j = await r.json();
-        console.log('Accounts: listWithAllocations response data:', j);
-        accountsData = j?.data || [];
+        const data = await r.json();
+        console.log('Accounts: listWithAllocations response data:', data);
+        accountsData = data?.data || [];
         console.log('Accounts: Extracted accountsData from listWithAllocations:', accountsData);
       }
     } catch (error) {
@@ -164,12 +166,12 @@ export default function Accounts() {
     if (!accountsData.length) {
       try {
         console.log('Accounts: Trying fallback /accounts/list...');
-        const r = await fetch('/accounts/list', { credentials: 'include' });
+        const r = await api('/accounts/list');
         console.log('Accounts: list response status:', r.status);
         if (r.ok) {
-          const j = await r.json();
-          console.log('Accounts: list response data:', j);
-          accountsData = j?.data || [];
+          const data = await r.json();
+          console.log('Accounts: list response data:', data);
+          accountsData = data?.data || [];
           console.log('Accounts: Extracted accountsData from list:', accountsData);
         }
       } catch (error) {
@@ -182,7 +184,7 @@ export default function Accounts() {
     console.log('Accounts: setAccounts called with:', accountsData);
 
     const [g] = await Promise.all([
-      fetch('/goals/list', { credentials: 'include' }).then(async (r) => {
+      api('/goals/list').then(async (r) => {
         if (r.ok) {
           const data = await r.json();
           if (data.success === false || data.status === false) {
@@ -202,9 +204,9 @@ export default function Accounts() {
     // Remove duplicate setAccounts call - accounts are already set above
     setGoals(g?.data || []);
     await loadTransactions();
-  };
+  }, []);
 
-  React.useEffect(() => { reload(); }, []);
+  React.useEffect(() => { reload(); }, [reload]);
 
   // Debug: Monitor accounts state changes
   React.useEffect(() => {
@@ -256,15 +258,14 @@ export default function Accounts() {
     console.log('createAccount: Making fetch request to /accounts/create');
     
     try {
-      const response = await fetch('/accounts/create', {
+      const response = await api('/accounts/create', {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           name: name.trim(),
           type: 'savings',
           initialBalance: Number(initialBalance || 0),
-        }),
+        },
       });
       
       console.log('createAccount: Response received, status:', response.status);

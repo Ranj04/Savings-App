@@ -59,7 +59,7 @@ public class GoalDto extends BaseDto {
                 .append("active", active)
                 .append("contributions", contribDocs)
                 .append("accountId", accountId)
-                .append("allocatedAmount", allocatedAmount);
+                .append("allocatedAmount", allocatedAmount == null ? 0.0 : allocatedAmount);
     }
 
     public static GoalDto fromDocument(Document d) {

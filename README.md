@@ -13,7 +13,7 @@ Backend: Java 21, custom HTTP server, Gson, MongoDB Java driver
 
 Database: MongoDB
 
-Auth: HttpOnly cookie auth=<hash> (SameSite Lax in dev, None; Secure in prod)
+Auth: HttpOnly cookie auth=<random session token> (SameSite=Lax in dev; SameSite=Lax + Secure in prod). Passwords are stored salted with PBKDF2-HMAC-SHA256.
 
 Ports: Frontend dev on 3001 (via CRA), Backend on 1299 (proxy: http://localhost:1299)
 
@@ -66,34 +66,45 @@ back-end/
 
 # Quick Start (Dev)
 
-Windows PowerShell sometimes blocks npm scripts; quick fix below.
+Prereqs:
 
-1) Prereqs
+- Node 18+ and npm
+- Java 21 (or compatible JDK) and Maven
+- MongoDB running locally (default mongodb://localhost:27017)
 
-Node 18+ and npm
+## Run everything with one command (recommended)
 
-Java 21 (or compatible JDK)
+From the repository root, install once and then start both tiers together:
 
-MongoDB running locally (default mongodb://localhost:27017)
+```
+npm run setup    # installs the runner + the frontend dependencies (first time only)
+npm start        # starts the Java backend (port 1299) AND the React frontend (port 3000) together
+```
 
-2) Backend (Java)
+`npm start` uses [concurrently](https://www.npmjs.com/package/concurrently) to launch:
 
-Open the project in IntelliJ and Run server.Server (listens on 1299), or:
+- `start:backend` → `mvn -f back-end/pom.xml compile exec:java` (runs `server.Server` on 1299)
+- `start:frontend` → `npm --prefix front-end start` (CRA dev server, proxies API calls to 1299)
 
-from back-end/
-mvn -q clean package
-run from your IDE, or if you have a main class runner set up:
-java -cp target/classes;... server.Server   (Windows)
+Press Ctrl-C once to stop both. The frontend's `proxy` setting in `front-end/package.json`
+forwards `/login`, `/accounts/...`, etc. to the backend, so the two run as one origin in dev.
 
-3) Frontend (React on 3001)
-from front-end/
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # fixes npm.ps1 block (PS only)
-$env:PORT=3001; npm install
-npm start
+## Run the tiers separately (alternative)
 
-CRA opens at http://localhost:3001.
+Backend only — from `back-end/`:
 
-front-end/package.json must contain:
+```
+mvn -q compile exec:java        # or: mvn clean package, then run server.Server from your IDE
+```
+
+Frontend only — from `front-end/`:
+
+```
+npm install
+npm start                       # CRA dev server on http://localhost:3000
+```
+
+`front-end/package.json` must contain:
 
 "proxy": "http://localhost:1299"
 

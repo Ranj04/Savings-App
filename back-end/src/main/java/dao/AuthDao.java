@@ -38,4 +38,12 @@ public class AuthDao extends BaseDao<AuthDto> {
                 .map(AuthDto::fromDocument)
                 .collect(Collectors.toList());
     }
+
+    /** Revoke a session token so a leaked/used cookie can no longer authenticate. */
+    public void deleteByHash(String hash) {
+        if (hash == null || hash.isBlank()) {
+            return;
+        }
+        collection.deleteMany(new Document("hash", hash));
+    }
 }

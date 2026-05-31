@@ -14,3 +14,21 @@ export const num = (v, d=0) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : d;
 };
+
+// Lenient id extractor that tolerates various backend shapes (id, _id.$oid, _id, goalId)
+// and falls back to '' when nothing matches. Use this when you just need a key/string id;
+// use oid() when you specifically require a valid 24-hex ObjectId.
+export const idOf = (obj) => {
+  if (!obj) return '';
+  if (typeof obj === 'string') return obj;
+  if (obj.id) return obj.id;
+  if (obj._id) {
+    if (typeof obj._id === 'string') return obj._id;
+    if (obj._id.$oid) return obj._id.$oid;
+  }
+  if (obj.goalId) return obj.goalId;
+  return '';
+};
+
+// Format a number as a fixed 2-decimal, locale-aware string.
+export const fmt = (v) => num(v, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });

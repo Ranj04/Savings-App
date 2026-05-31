@@ -1,29 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-/* inline notice */
-function Notice({ kind="ok", text }) {
-  if (!text) return null;
-  const cls = kind === "error" ? "inline-notice inline-notice--error" : "inline-notice inline-notice--ok";
-  return <div className={cls}>{text}</div>;
-}
-
-const isHex24 = s => typeof s === "string" && /^[0-9a-fA-F]{24}$/.test(s);
-const oid = v => {
-  if (!v) return null;
-  if (typeof v === "string" && isHex24(v)) return v;
-  if (typeof v === "object") {
-    if (isHex24(v.$oid)) return v.$oid;
-    if (isHex24(v._id)) return v._id;
-    if (v._id && isHex24(v._id.$oid)) return v._id.$oid;
-    if (isHex24(v.id)) return v.id;
-  }
-  return null;
-};
-const num = (v, d=0) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : d;
-};
-const fmt = v => num(v,0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+import { api } from "../api/client";
+import { oid, num, fmt } from "../utils/oid";
+import InlineNotice from "./InlineNotice";
 
 // Define first then export to avoid any tooling edge cases where an inline default
 // declaration could transiently produce an empty module object during HMR.
@@ -49,7 +27,7 @@ function QuickActions({ onAnyChange }) {
       let acc = [];
       console.log('QuickActions: Loading accounts...');
       try {
-        let r = await fetch("/accounts/listWithAllocations", { credentials: "include" });
+        let r = await api("/accounts/listWithAllocations");
         console.log('QuickActions: Accounts with allocations response status:', r.status);
         if (r.ok) {
           const data = await r.json();
@@ -65,7 +43,7 @@ function QuickActions({ onAnyChange }) {
       } catch (error) {
         console.error('Error loading accounts with allocations, trying fallback:', error);
         try {
-          const r2 = await fetch("/accounts/list", { credentials: "include" });
+          const r2 = await api("/accounts/list");
           console.log('QuickActions: Fallback accounts response status:', r2.status);
           if (r2.ok) {
             const data = await r2.json();
@@ -99,7 +77,7 @@ function QuickActions({ onAnyChange }) {
       // 2) goals
       let gl = [];
       try {
-        const r = await fetch("/goals/list", { credentials: "include" });
+        const r = await api("/goals/list");
         if (r.ok) {
           const data = await r.json();
           if (data.success === false) {
@@ -147,7 +125,7 @@ function QuickActions({ onAnyChange }) {
       const nextGoalId = goalId || firstGoalForAccount;
       setGoalId(nextGoalId);
     })();
-  }, []);
+  }, [accountId, goalId]);
 
   const accountGoals = useMemo(() => goals.filter(g => g.accountId === accountId), [goals, accountId]);
   useEffect(() => {
@@ -172,14 +150,13 @@ function QuickActions({ onAnyChange }) {
         ? { accountId, goalId, amount: amt, transferToGoal }
         : { accountId, goalId, amount: amt };
         
-      const res = await fetch(endpoint, {
+      const res = await api(endpoint, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        body: body
       });
-      const j = await res.json().catch(()=>({}));
-      if (!res.ok || j?.success === false) throw new Error(j?.message || j?.error || "Request failed");
+      const data = await res.json();
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.error || "Request failed");
       setAmount("");
       setTransferToGoal(""); // Reset transfer selection
       setFlash("ok", okMsg);
@@ -287,7 +264,7 @@ function QuickActions({ onAnyChange }) {
         </button>
       </div>
 
-      <Notice kind={msg.kind === "error" ? "error" : "ok"} text={msg.text} />
+      {msg.text && <InlineNotice kind={msg.kind === "error" ? "error" : "ok"}>{msg.text}</InlineNotice>}
     </div>
   );
 }

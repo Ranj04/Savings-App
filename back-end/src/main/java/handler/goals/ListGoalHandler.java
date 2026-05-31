@@ -17,28 +17,33 @@ public class ListGoalHandler implements BaseHandler {
 
     @Override
     public HttpResponseBuilder handleRequest(ParsedRequest request) {
-        var auth = AuthFilter.doFilter(request);
-        if (!auth.isLoggedIn) {
-            return new HttpResponseBuilder().setStatus(StatusCodes.UNAUTHORIZED);
+        try {
+            AuthFilter.AuthResult auth = AuthFilter.doFilter(request);
+            if (!auth.isLoggedIn) {
+                return new HttpResponseBuilder().setStatus(StatusCodes.UNAUTHORIZED)
+                        .setBody(new RestApiAppResponse<>(false, "unauthorized"));
+            }
+            List<GoalDto> goals = GoalDao.getInstance().findByUser(auth.userName);
+            JsonArray out = new JsonArray();
+            if (goals != null) {
+                for (GoalDto g : goals) {
+                    JsonObject o = new JsonObject();
+                    o.addProperty("_id", g.id.toHexString());
+                    o.addProperty("userName", g.userName);
+                    o.addProperty("accountId", g.accountId == null ? null : g.accountId.toHexString());
+                    o.addProperty("name", g.name);
+                    o.addProperty("allocatedAmount", g.allocatedAmount == null ? 0.0 : g.allocatedAmount);
+                    if (g.targetAmount != null) o.addProperty("targetAmount", g.targetAmount);
+                    o.addProperty("createdAt", g.createdAt);
+                    out.add(o);
+                }
+            }
+            return new HttpResponseBuilder().setStatus(StatusCodes.OK)
+                    .setBody(new RestApiAppResponse<>(true, out, null));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new HttpResponseBuilder().setStatus(StatusCodes.INTERNAL_SERVER_ERROR)
+                    .setBody(new RestApiAppResponse<>(false, "internal error"));
         }
-
-        List<GoalDto> goals = GoalDao.getInstance().findByUser(auth.userName);
-
-        JsonArray out = new JsonArray();
-        for (GoalDto g : goals) {
-            // Assuming non-null ids per new data model; if legacy nulls appear, they will throw NPE earlier.
-            JsonObject o = new JsonObject();
-            o.addProperty("_id", g.id.toHexString());
-            o.addProperty("userName", g.userName);
-            o.addProperty("accountId", g.accountId.toHexString());
-            o.addProperty("name", g.name);
-            o.addProperty("allocatedAmount", g.allocatedAmount == null ? 0.0 : g.allocatedAmount);
-            if (g.targetAmount != null) o.addProperty("targetAmount", g.targetAmount);
-            o.addProperty("createdAt", g.createdAt);
-            out.add(o);
-        }
-
-        return new HttpResponseBuilder().setStatus(StatusCodes.OK)
-                .setBody(new RestApiAppResponse<>(true, out, null));
     }
 }
