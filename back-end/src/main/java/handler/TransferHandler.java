@@ -18,38 +18,47 @@ public class TransferHandler implements BaseHandler {
 
     @Override
     public HttpResponseBuilder handleRequest(ParsedRequest request) {
-        UserDao userDao = UserDao.getInstance();
-
-        TransferRequestDto transferRequestDto = GsonTool.GSON.fromJson(request.getBody(),
-                TransferRequestDto.class);
-
         AuthFilter.AuthResult authResult = AuthFilter.doFilter(request);
         if (!authResult.isLoggedIn) {
             return new HttpResponseBuilder().setStatus(StatusCodes.UNAUTHORIZED);
         }
 
-        UserDto fromUser = userDao.query(new Document("userName", authResult.userName))
-                .iterator().next();
+        UserDao userDao = UserDao.getInstance();
 
-        if (fromUser == null) {
-            var res = new RestApiAppResponse<>(false, "Invalid from user.");
+        TransferRequestDto transferRequestDto = GsonTool.GSON.fromJson(request.getBody(),
+                TransferRequestDto.class);
+
+        // A missing or non-positive amount must be rejected. Without this check a
+        // negative amount would *increase* the sender's balance and drain the
+        // recipient's — a fund-theft bug.
+        if (transferRequestDto == null || transferRequestDto.toId == null
+                || !(transferRequestDto.amount > 0)) {
             return new HttpResponseBuilder().setStatus("400 Bad Request")
-                    .setBody(GsonTool.GSON.toJson(res));
+                    .setBody(new RestApiAppResponse<>(false, "A positive amount and a recipient are required."));
         }
 
-        UserDto toUser = userDao.query(new Document("userName", transferRequestDto.toId))
-                .iterator().next();
-
-        if (toUser == null) {
-            var res = new RestApiAppResponse<>(false, "Invalid user to transfer.");
+        List<UserDto> fromList = userDao.query(new Document("userName", authResult.userName));
+        if (fromList.isEmpty()) {
             return new HttpResponseBuilder().setStatus("400 Bad Request")
-                    .setBody(GsonTool.GSON.toJson(res));
+                    .setBody(new RestApiAppResponse<>(false, "Invalid from user."));
+        }
+        UserDto fromUser = fromList.get(0);
+
+        List<UserDto> toList = userDao.query(new Document("userName", transferRequestDto.toId));
+        if (toList.isEmpty()) {
+            return new HttpResponseBuilder().setStatus("400 Bad Request")
+                    .setBody(new RestApiAppResponse<>(false, "Invalid user to transfer."));
+        }
+        UserDto toUser = toList.get(0);
+
+        if (fromUser.getUserName().equals(toUser.getUserName())) {
+            return new HttpResponseBuilder().setStatus("400 Bad Request")
+                    .setBody(new RestApiAppResponse<>(false, "Cannot transfer to yourself."));
         }
 
         if (fromUser.getBalance() < transferRequestDto.amount) {
-            var res = new RestApiAppResponse<>(false, "Not enough funds.");
             return new HttpResponseBuilder().setStatus("400 Bad Request")
-                    .setBody(GsonTool.GSON.toJson(res));
+                    .setBody(new RestApiAppResponse<>(false, "Not enough funds."));
         }
 
         fromUser.setBalance(fromUser.getBalance() - transferRequestDto.amount);
@@ -66,7 +75,7 @@ public class TransferHandler implements BaseHandler {
         transactionDao.put(transaction);
 
         var res = new RestApiAppResponse<>(true, List.of(fromUser, toUser), null);
-        return new HttpResponseBuilder().setStatus("200 OK").setBody(GsonTool.GSON.toJson(res));
+        return new HttpResponseBuilder().setStatus("200 OK").setBody(res);
     }
 
 }

@@ -27,6 +27,18 @@ public class ParsedRequest {
 
     public void setHeaderValue(String key, String value) {
         this.headerMap.put(key, value);
+        // Keep the cookie map in sync whenever a Cookie header is set, so callers
+        // can use getCookieValue regardless of how the request was constructed.
+        if ("cookie".equalsIgnoreCase(key) && value != null) {
+            for (String part : value.split(";")) {
+                String p = part.trim();
+                if (p.isEmpty()) {
+                    continue;
+                }
+                String[] kv = p.split("=", 2); // split on first '=' only
+                this.cookieMap.put(kv[0].trim(), kv.length > 1 ? kv[1].trim() : "");
+            }
+        }
     }
 
     public void setPath(String path) {

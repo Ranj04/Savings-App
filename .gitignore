@@ -1,0 +1,14 @@
+# Root-level dependencies (per-package node_modules handled by their own .gitignore)
+/node_modules/
+
+# Local env / secrets
+.env
+
+# Editors
+/.vscode/
+
+# Stray IntelliJ project copy (not part of this app)
+/Savings-App/
+
+# Logs
+*.log

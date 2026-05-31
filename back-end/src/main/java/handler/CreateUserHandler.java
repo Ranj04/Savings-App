@@ -4,11 +4,12 @@ import dao.AuthDao;
 import dao.UserDao;
 import dto.AuthDto;
 import dto.UserDto;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.bson.Document;
 import request.ParsedRequest;
 import response.HttpResponseBuilder;
 import response.RestApiAppResponse;
+import security.PasswordUtil;
+import security.TokenUtil;
 
 import java.time.Instant;
 
@@ -28,26 +29,23 @@ public class CreateUserHandler implements BaseHandler {
             return new HttpResponseBuilder().setStatus("409 Conflict")
                     .setBody(new RestApiAppResponse<>(false, "Username already taken"));
         }
-        userDto.setPassword(DigestUtils.sha256Hex(userDto.getPassword()));
+        userDto.setPassword(PasswordUtil.hash(userDto.getPassword()));
         userDao.put(userDto);
 
         // Auto-login: create auth token
         AuthDao authDao = AuthDao.getInstance();
         AuthDto authDto = new AuthDto();
         authDto.setUserName(userDto.getUserName());
-        authDto.setExpireTime(Instant.now().getEpochSecond() + 60000);
-        String hash = DigestUtils.sha256Hex(authDto.getUserName() + authDto.getExpireTime());
-        authDto.setHash(hash);
+        long nowSec = Instant.now().getEpochSecond();
+        long ttlSec = 86_400L; // 24h
+        authDto.setExpireTime(nowSec + ttlSec);
+        String token = TokenUtil.newToken(); // opaque, unguessable session id
+        authDto.setHash(token);
         authDao.put(authDto);
 
-        // Inline response object per request
-        boolean isProd = "production".equalsIgnoreCase(System.getenv("APP_ENV"));
-        String flags = isProd
-                ? "Path=/; HttpOnly; SameSite=None; Secure"
-                : "Path=/; HttpOnly; SameSite=Lax";
         return new HttpResponseBuilder()
                 .setStatus("201 Created")
-                .setHeader("Set-Cookie", "auth=" + hash + "; " + flags)
+                .setHeader("Set-Cookie", CookieUtil.authCookie(token))
                 .setHeader("Content-Type", "application/json")
                 .setBody(new RestApiAppResponse<>(true, "User created and logged in"));
     }

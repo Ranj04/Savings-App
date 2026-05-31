@@ -41,8 +41,6 @@ public class UsernameTakenTest {
 
     ArgumentCaptor<Document> argument = ArgumentCaptor.forClass(Document.class);
 
-    Mockito.doNothing().when(mockCollection).insertOne(Mockito.any());
-
     ParsedRequest parsedRequest = new ParsedRequest();
     parsedRequest.setPath("/createUser");
     var user = new UserDto();
@@ -52,7 +50,7 @@ public class UsernameTakenTest {
     var handler = HandlerFactory.getHandler(parsedRequest);
     var builder = handler.handleRequest(parsedRequest);
     var res = builder.build();
-    Assert.assertEquals(res.status, StatusCodes.OK);
+    Assert.assertEquals(res.status, StatusCodes.CONFLICT);
     Mockito.verify(mockCollection).find(argument.capture());
     Assert.assertEquals(argument.getAllValues().size(), 1);
     Assert.assertEquals(argument.getAllValues().get(0).get("userName"), user.getUserName());

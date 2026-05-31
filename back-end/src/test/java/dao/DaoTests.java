@@ -18,7 +18,6 @@ public class DaoTests {
   public void testPut(){
     // checks that you call insertOne if this is a new item
     var test = new CollectionTestTools();
-    Mockito.doNothing().when(test.mockAuthCollection).insertOne(Mockito.any());
     AuthDao dao = AuthDao.getInstance();
     var item = new AuthDto();
     dao.put(item);
@@ -30,7 +29,6 @@ public class DaoTests {
     // checks that you call insertOne if this is a new item
     MongoCollection mongoCollection = Mockito.mock(MongoCollection.class);
     AuthDao dao = AuthDao.getInstance(mongoCollection);
-    Mockito.doNothing().when(mongoCollection).insertOne(Mockito.any());
     var item = new AuthDto();
     item.setUniqueId("6528b8c2c96ea939e01e1afa");
     dao.put(item);

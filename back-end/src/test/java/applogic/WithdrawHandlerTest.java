@@ -1,11 +1,12 @@
 package applogic;
 
-import dto.TransactionDto;
-import dto.UserDto;
-import handler.GsonTool;
+import com.google.gson.JsonObject;
+import dto.AccountDto;
+import dto.GoalDto;
 import handler.StatusCodes;
 import handler.WithdrawHandler;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -18,26 +19,43 @@ import java.util.List;
 public class WithdrawHandlerTest {
 
     @Test(singleThreaded = true)
-    public void makeDeposit(){
+    public void makeWithdraw(){
         var tools = new CollectionTestTools();
-
         var auth = tools.createLogin();
         var handler = new WithdrawHandler();
+
+        ObjectId accId = new ObjectId();
+        ObjectId goalId = new ObjectId();
+        double amount = 50.0;
+
+        AccountDto account = new AccountDto();
+        account.userName = auth.getUserName();
+        account.name = "Savings";
+        account.type = "savings";
+        account.balance = 200.0;
+        Document accountDoc = account.toDocument().append("_id", accId);
+        Mockito.doReturn(new ArrayList<>(List.of(accountDoc))).when(tools.accountfindIterable).into(Mockito.any());
+        Mockito.doReturn(accountDoc).when(tools.accountfindIterable).first();
+
+        // Goal has $100 allocated, so a $50 withdrawal is allowed.
+        GoalDto goal = new GoalDto();
+        goal.userName = auth.getUserName();
+        goal.accountId = accId;
+        goal.name = "Goal";
+        goal.allocatedAmount = 100.0;
+        Document goalDoc = goal.toDocument().append("_id", goalId);
+        Mockito.doReturn(new ArrayList<>(List.of(goalDoc))).when(tools.goalfindIterable).into(Mockito.any());
+        Mockito.doReturn(goalDoc).when(tools.goalfindIterable).first();
 
         ParsedRequest parsedRequest = new ParsedRequest();
         parsedRequest.setPath("/withdraw");
         parsedRequest.setCookieValue("auth", String.valueOf(Math.random()));
-        TransactionDto transaction = new TransactionDto();
-        Double amount = Math.random();
-        transaction.setAmount(amount);
-        parsedRequest.setBody(GsonTool.GSON.toJson(transaction));
+        JsonObject body = new JsonObject();
+        body.addProperty("accountId", accId.toHexString());
+        body.addProperty("goalId", goalId.toHexString());
+        body.addProperty("amount", amount);
+        parsedRequest.setBody(body.toString());
 
-        List<Document> userReturnList = new ArrayList<>();
-        UserDto userDto = new UserDto();
-        userDto.setBalance(200.0);
-        userDto.setUserName(auth.getUserName());
-        userReturnList.add(userDto.toDocument());
-        Mockito.doReturn(userReturnList).when(tools.userfindIterable).into(Mockito.any());
         ArgumentCaptor<Document> transactionCaptor = ArgumentCaptor.forClass(Document.class);
 
         var builder = handler.handleRequest(parsedRequest);
@@ -46,8 +64,8 @@ public class WithdrawHandlerTest {
 
         Mockito.verify(tools.mockTransactionCollection).insertOne(transactionCaptor.capture());
         var allTransactions = transactionCaptor.getAllValues();
-        Assert.assertEquals(allTransactions.get(0).get("userId"), userDto.getUserName());
-        Assert.assertEquals(allTransactions.get(0).get("amount"), transaction.getAmount());
+        Assert.assertEquals(allTransactions.get(0).get("userId"), auth.getUserName());
+        Assert.assertEquals(allTransactions.get(0).get("amount"), amount);
         Assert.assertEquals(allTransactions.get(0).get("transactionType"), "Withdraw");
     }
 }

@@ -64,7 +64,24 @@ public class HttpResponseBuilder {
     }
 
     public CustomHttpResponse build() {
-        String parsedBody = body != null ? GsonTool.GSON.toJson(body) : bodyString;
-        return new CustomHttpResponse(headers, status, version, parsedBody);
+        if (body != null) {
+            var jsonObj = new java.util.LinkedHashMap<String, Object>();
+            jsonObj.put("status", body.status);
+            jsonObj.put("data", body.data); // Use the new Object data field directly
+            if (body.message != null) jsonObj.put("message", body.message);
+            // Only add extra properties if not using the special single-object data mode
+            if (!body.properties.isEmpty()) {
+                for (var entryObj : body.properties.entrySet()) {
+                    Map.Entry<String, Object> entry = (Map.Entry<String, Object>) entryObj;
+                    if (!"data".equals(entry.getKey())) {
+                        jsonObj.put(entry.getKey(), entry.getValue());
+                    }
+                }
+            }
+            String parsedBody = handler.GsonTool.GSON.toJson(jsonObj);
+            return new CustomHttpResponse(headers, status, version, parsedBody);
+        } else {
+            return new CustomHttpResponse(headers, status, version, bodyString);
+        }
     }
 }

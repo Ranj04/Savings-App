@@ -8,7 +8,6 @@ import {
   RouterProvider,
 } from "react-router-dom";
 import Home from './Home';
-import SavingsGoal from './SavingsGoal'; // Import the SavingsGoal component
 import Goals from './pages/Goals'; // Goals page
 import Accounts from './pages/Accounts'; // Accounts page
 import ProtectedRoute from './ProtectedRoute';
@@ -23,10 +22,6 @@ const router = createBrowserRouter([
   {
     path: "/home",
   element: <ProtectedRoute><Home /></ProtectedRoute>,
-  },
-  {
-    path: "/savings-goal", // Add the savings goal path
-  element: <ProtectedRoute><SavingsGoal /></ProtectedRoute>, // Render the SavingsGoal component
   },
   {
     path: "/goals", // Goals tracking page

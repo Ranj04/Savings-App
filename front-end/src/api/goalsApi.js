@@ -1,22 +1,23 @@
-import idOf from '../utils/idOf';
+import { idOf } from '../utils/oid';
+import { api } from './client';
 
 export async function listGoals() {
   try {
-    const res = await fetch('/goals/list', { credentials: 'include' });
+    const res = await api('/goals/list');
     
     if (!res.ok) {
       console.error('Failed to load goals:', res.status);
       return [];
     }
     
-    const json = await res.json();
+    const data = await res.json();
     
-    if (json.success === false) {
-      console.error('Failed to load goals:', json.message);
+    if (data.success === false) {
+      console.error('Failed to load goals:', data.message);
       return [];
     }
     
-    const rawContainer = json?.data != null ? json.data : json; // unwrap one level
+    const rawContainer = data?.data != null ? data.data : data; // unwrap one level
     const raw = Array.isArray(rawContainer) ? rawContainer : (Array.isArray(rawContainer?.data) ? rawContainer.data : []);
     
     return raw.map(g => {

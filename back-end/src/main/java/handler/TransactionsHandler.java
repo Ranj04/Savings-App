@@ -1,121 +1,58 @@
 package handler;
 
-import dao.AccountDao;
-import dao.GoalDao;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import dao.TransactionDao;
-import dto.AccountDto;
-import dto.GoalDto;
 import dto.TransactionDto;
-import dto.TransactionType;
 import org.bson.Document;
 import request.ParsedRequest;
 import response.HttpResponseBuilder;
 import response.RestApiAppResponse;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Comparator;
+import java.util.List;
 
 public class TransactionsHandler implements BaseHandler {
 
     @Override
     public HttpResponseBuilder handleRequest(ParsedRequest request) {
-        var auth = AuthFilter.doFilter(request);
-        if (!auth.isLoggedIn) return new HttpResponseBuilder().setStatus(StatusCodes.UNAUTHORIZED);
-
-        int limit = 5;
         try {
-            String q = request.getQueryParam("limit");
-            if (q != null && !q.isBlank()) {
-                int L = Integer.parseInt(q);
-                if (L >= 1 && L <= 100) limit = L;
+            AuthFilter.AuthResult auth = AuthFilter.doFilter(request);
+            if (!auth.isLoggedIn) {
+                return new HttpResponseBuilder().setStatus(StatusCodes.UNAUTHORIZED)
+                        .setBody(new RestApiAppResponse<>(false, "unauthorized"));
             }
-        } catch (Exception ignored) {}
-
-        // Load accounts/goals once, then join locally
-        List<AccountDto> accounts = AccountDao.getInstance()
-                .query(new Document("userName", auth.userName));
-        Map<String, String> accNameById = accounts.stream()
-                .collect(Collectors.toMap(AccountDto::getUniqueId, a -> a.name == null ? "" : a.name));
-
-        List<GoalDto> goals = GoalDao.getInstance()
-                .query(new Document("userName", auth.userName));
-        Map<String, GoalDto> goalById = new HashMap<>();
-        for (GoalDto g : goals) {
-            if (g.id != null) goalById.put(g.id.toHexString(), g);
-        }
-
-        List<TransactionDto> raw = TransactionDao.getInstance()
-                .query(new Document("userId", auth.userName));
-        raw.sort(Comparator.comparing(TransactionDto::getTimestamp).reversed());
-
-        List<Map<String, Object>> out = new ArrayList<>();
-
-        for (TransactionDto t : raw.stream().limit(limit).toList()) {
-            String type = t.getTransactionType() == null ? null : t.getTransactionType().name().toLowerCase();
-
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("_id", t.getUniqueId());
-            row.put("userName", auth.userName);
-            row.put("type", type);
-            row.put("amount", t.getAmount());
-            row.put("createdAt", t.getTimestamp());
-
-            if (t.getTransactionType() == TransactionType.Deposit || t.getTransactionType() == TransactionType.Withdraw) {
-                String goalId = t.getGoalId();
-                String accountId = t.getAccountId();
-
-                // derive account via goal if needed
-                if ((accountId == null || accountId.isBlank()) && goalId != null) {
-                    GoalDto g = goalById.get(goalId);
-                    if (g != null && g.accountId != null) {
-                        accountId = g.accountId.toHexString();
-                    }
+            int limit = 5;
+            try {
+                String q = request.getQueryParam("limit");
+                if (q != null && !q.isBlank()) {
+                    int L = Integer.parseInt(q);
+                    if (L >= 1 && L <= 100) limit = L;
                 }
+            } catch (Exception ignored) {}
 
-                String accountName = accountId == null ? "" : accNameById.getOrDefault(accountId, "");
-                String goalName = "";
-                GoalDto g = goalById.get(goalId);
-                if (g != null) goalName = g.name == null ? "" : g.name;
-
-                row.put("accountId", accountId);
-                row.put("accountName", accountName);
-                row.put("goalId", goalId);
-                row.put("goalName", goalName);
-                row.put("displayAccount", accountName);
-                row.put("displayGoal", goalName);
-
-            } else if (t.getTransactionType() == TransactionType.Transfer) {
-                String fromGoalId = t.getFromGoalId();
-                String toGoalId   = t.getToGoalId();
-
-                GoalDto fromG = goalById.get(fromGoalId);
-                GoalDto toG   = goalById.get(toGoalId);
-
-                String fromGoalName = fromG == null ? "" : Optional.ofNullable(fromG.name).orElse("");
-                String toGoalName   = toG   == null ? "" : Optional.ofNullable(toG.name).orElse("");
-
-                String fromAccId = (fromG != null && fromG.accountId != null) ? fromG.accountId.toHexString() : null;
-                String toAccId   = (toG   != null && toG.accountId   != null) ? toG.accountId.toHexString()   : null;
-
-                String fromAccName = fromAccId == null ? "" : accNameById.getOrDefault(fromAccId, "");
-                String toAccName   = toAccId   == null ? "" : accNameById.getOrDefault(toAccId,   "");
-
-                row.put("fromGoalId", fromGoalId);
-                row.put("toGoalId", toGoalId);
-                row.put("fromGoalName", fromGoalName);
-                row.put("toGoalName", toGoalName);
-                row.put("fromAccountId", fromAccId);
-                row.put("toAccountId", toAccId);
-                row.put("fromAccountName", fromAccName);
-                row.put("toAccountName", toAccName);
-                row.put("displayAccount", (fromAccName + " → " + toAccName).trim());
-                row.put("displayGoal", (fromGoalName + " → " + toGoalName).trim());
+            List<TransactionDto> raw = TransactionDao.getInstance().query(new Document("userId", auth.userName));
+            raw = raw.stream()
+                    .sorted(Comparator.comparing(
+                            TransactionDto::getTimestamp,
+                            Comparator.nullsLast(Comparator.reverseOrder())))
+                    .toList();
+            JsonArray out = new JsonArray();
+            for (TransactionDto t : raw.stream().limit(limit).toList()) {
+                JsonObject row = new JsonObject();
+                row.addProperty("_id", t.getUniqueId());
+                row.addProperty("userName", auth.userName);
+                row.addProperty("type", t.getTransactionType() == null ? null : t.getTransactionType().name().toLowerCase());
+                row.addProperty("amount", t.getAmount());
+                row.addProperty("timestamp", t.getTimestamp());
+                out.add(row);
             }
-
-            out.add(row);
+            return new HttpResponseBuilder().setStatus(StatusCodes.OK)
+                    .setBody(new RestApiAppResponse<>(true, out, null));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new HttpResponseBuilder().setStatus(StatusCodes.INTERNAL_SERVER_ERROR)
+                    .setBody(new RestApiAppResponse<>(false, "internal error"));
         }
-
-        return new HttpResponseBuilder().setStatus(StatusCodes.OK)
-                .setBody(new RestApiAppResponse<>(true, out, null));
     }
 }

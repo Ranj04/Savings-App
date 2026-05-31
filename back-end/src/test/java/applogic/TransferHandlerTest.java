@@ -18,28 +18,37 @@ import java.util.List;
 public class TransferHandlerTest {
 
     @Test(singleThreaded = true)
-    public void makeDeposit(){
+    public void makeTransfer(){
         var tools = new CollectionTestTools();
 
         var auth = tools.createLogin();
         var handler = new TransferHandler();
 
+        String recipient = "recipient-" + Math.random();
+        double amount = 50.0;
+
         ParsedRequest parsedRequest = new ParsedRequest();
-        parsedRequest.setPath("/withdraw");
+        parsedRequest.setPath("/transfer");
         parsedRequest.setCookieValue("auth", String.valueOf(Math.random()));
         TransactionDto transaction = new TransactionDto();
-        Double amount = Math.random();
         transaction.setAmount(amount);
-        String userToGetFunds = String.valueOf(Math.random());
-        transaction.setToId(userToGetFunds);
+        transaction.setToId(recipient);
         parsedRequest.setBody(GsonTool.GSON.toJson(transaction));
 
-        List<Document> userReturnList = new ArrayList<>();
-        UserDto userDto = new UserDto();
-        userDto.setBalance(200.0);
-        userDto.setUserName(auth.getUserName());
-        userReturnList.add(userDto.toDocument());
-        Mockito.doReturn(userReturnList).when(tools.userfindIterable).into(Mockito.any());
+        // The handler issues two user lookups: first the sender, then the recipient.
+        // They must be distinct users, otherwise the "cannot transfer to yourself" guard trips.
+        UserDto fromUser = new UserDto();
+        fromUser.setUserName(auth.getUserName());
+        fromUser.setBalance(200.0);
+
+        UserDto toUser = new UserDto();
+        toUser.setUserName(recipient);
+        toUser.setBalance(0.0);
+
+        Mockito.doReturn(new ArrayList<>(List.of(fromUser.toDocument())),
+                        new ArrayList<>(List.of(toUser.toDocument())))
+                .when(tools.userfindIterable).into(Mockito.any());
+
         ArgumentCaptor<Document> transactionCaptor = ArgumentCaptor.forClass(Document.class);
 
         var builder = handler.handleRequest(parsedRequest);
@@ -48,9 +57,9 @@ public class TransferHandlerTest {
 
         Mockito.verify(tools.mockTransactionCollection).insertOne(transactionCaptor.capture());
         var allTransactions = transactionCaptor.getAllValues();
-        Assert.assertEquals(allTransactions.get(0).get("userId"), userDto.getUserName());
-        Assert.assertEquals(allTransactions.get(0).get("toId"), transaction.getToId());
-        Assert.assertEquals(allTransactions.get(0).get("amount"), transaction.getAmount());
+        Assert.assertEquals(allTransactions.get(0).get("userId"), auth.getUserName());
+        Assert.assertEquals(allTransactions.get(0).get("toId"), recipient);
+        Assert.assertEquals(allTransactions.get(0).get("amount"), amount);
         Assert.assertEquals(allTransactions.get(0).get("transactionType"), "Transfer");
     }
 }

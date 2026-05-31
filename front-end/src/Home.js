@@ -1,24 +1,45 @@
 import React from 'react';
+import { useEffect } from 'react';
 import Header, { useUsername } from './components/Header';
 import QuickActions from './components/QuickActions';
+import LinkBankButton from './components/LinkBankButton';
+import AddFunds from './components/AddFunds';
+import Routines from './components/Routines';
 import { listGoals } from './api/goalsApi';
+import { possessive } from './utils/possessive';
+import { api } from './api/client';
 
 export default function Home() {
     const username = useUsername();
-    const [accounts, setAccounts] = React.useState([]);
-    const [goals, setGoals] = React.useState([]);
     const [txns, setTxns] = React.useState([]);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState('');
 
-    React.useEffect(() => { reload(); }, []);
+    // Compute personalized title and welcome message
+    const owner = username || '';
+    const pageTitle = owner ? `${possessive(owner)} Savings App` : 'Savings App';
+    const welcome = owner ? `Welcome, ${owner}` : 'Welcome, Friend';
 
-    async function loadRecent() {
-        const candidates = ['/transactions', '/transactions/list', '/getTransactions'];
+    // Set document title
+    useEffect(() => { 
+        document.title = pageTitle; 
+    }, [pageTitle]);
+
+    const loadRecent = React.useCallback(async function loadRecent() {
+        const candidates = ['/transactions', '/transactions/list'];
         for (const url of candidates) {
             try {
-                const r = await fetch(url, { credentials: 'include' });
-                if (!r.ok) continue;
-                const j = await r.json();
-                const raw = j?.data || j?.transactions || j || [];
+                const r = await api(url);
+                if (!r.ok) {
+                    if (r.status === 401) {
+                        // Don't crash on 401 - just show a small message
+                        setError('Please sign in to view transactions');
+                        return;
+                    }
+                    continue;
+                }
+                const data = await r.json();
+                const raw = data?.data || data?.transactions || data || [];
                 if (!Array.isArray(raw)) continue;
 
                 const normalized = raw.map(t => {
@@ -50,60 +71,107 @@ export default function Home() {
 
                 normalized.sort((a, b) => b.createdAt - a.createdAt);
                 setTxns(normalized.slice(0, 5));
+                setError(''); // Clear any previous errors
                 return;
-            } catch { /* try next */ }
+            } catch (error) {
+                console.error(`Error loading transactions from ${url}:`, error);
+                continue;
+            }
         }
         setTxns([]);
-    }
+        setError('Unable to load recent transactions');
+    }, []);
 
-    async function reload() {
+    const reload = React.useCallback(async function reload() {
+        setLoading(true);
+        setError('');
+        
         try {
-            console.log('Home: Loading accounts...');
-            const accRes = await fetch('/accounts/list', { credentials: 'include' });
-            console.log('Home: Accounts response status:', accRes.status);
-            if (accRes.ok) {
-                const data = await accRes.json();
-                console.log('Home: Accounts response data:', data);
-                if (data.success === false) {
-                    console.error('Failed to load accounts:', data.message);
-                    setAccounts([]);
-                } else {
-                    const accountsData = data?.data || [];
-                    console.log('Home: Setting accounts:', accountsData);
-                    setAccounts(accountsData);
+            // Try accounts/listWithAllocations first, fallback to accounts/list
+            let accountsData = [];
+            try {
+                const accRes = await api('/accounts/listWithAllocations');
+                if (accRes.ok) {
+                    const data = await accRes.json();
+                    if (data && data.success !== false) {
+                        accountsData = data?.data || [];
+                    }
+                } else if (accRes.status === 401) {
+                    // Don't crash on 401 - just log and continue
+                    console.log('Accounts endpoint returned 401, will retry later');
                 }
-            } else {
-                console.error('Failed to load accounts:', accRes.status);
-                setAccounts([]);
+            } catch (error) {
+                console.error('Error loading accounts with allocations:', error);
+            }
+            
+            // Fallback to regular accounts list if needed
+            if (accountsData.length === 0) {
+                try {
+                    const accRes = await api('/accounts/list');
+                    if (accRes.ok) {
+                        const data = await accRes.json();
+                        if (data && data.success !== false) {
+                            accountsData = data?.data || [];
+                        }
+                    } else if (accRes.status === 401) {
+                        // Don't crash on 401 - just log and continue
+                        console.log('Accounts fallback endpoint returned 401, will retry later');
+                    }
+                } catch (error) {
+                    console.error('Error loading accounts fallback:', error);
+                }
+            }
+            
+            if (accountsData.length === 0) {
+                setError('Unable to load accounts');
             }
         } catch (error) {
-            console.error('Error loading accounts:', error);
-            setAccounts([]);
+            console.error('Error in accounts loading:', error);
+            setError('Failed to load account information');
         }
+        
         try {
-            const gls = await listGoals();
-            setGoals(gls);
+            await listGoals();
         } catch (error) {
             console.error('Error loading goals:', error);
-            setGoals([]);
+            setError('Failed to load goals');
         }
+        
         await loadRecent();
-    }
+        setLoading(false);
+    }, [loadRecent]);
+
+    React.useEffect(() => { reload(); }, [reload]);
 
     return (
         <>
-            <Header />
+            <Header titleOverride={pageTitle} />
             <div className="page">
                 <div className="page__inner">
+                    <h1 style={{ marginBottom: '20px' }}>{welcome}!</h1>
                     <div className="card card--padded">
-                        <h1>Welcome, {username || 'Friend'}!</h1>
+                        <h3 style={{ marginBottom: 8 }}>Your bank</h3>
+                        <p className="muted" style={{ marginTop: 0 }}>
+                            Link a real bank to import balances, or use a manual account and add income below.
+                        </p>
+                        <LinkBankButton onLinked={reload} />
+                    </div>
+                    <div className="card card--padded">
+                        <AddFunds onChange={reload} />
                     </div>
                     <div className="card card--padded">
                         <QuickActions onAnyChange={loadRecent} />
                     </div>
                     <div className="card card--padded">
+                        <Routines onChange={loadRecent} />
+                    </div>
+                    <div className="card card--padded">
                         <h3>Recent activity</h3>
-                        {txns.length === 0 ? (
+                        {loading ? (
+                            <div className="muted">Loading transactions...</div>
+                        ) : error ? (
+                            <div className="muted">{error}</div>
+                        ) : txns.length === 0 ? (
                             <div className="muted">No transactions yet.</div>
                         ) : (
                             <table className="txn-table">

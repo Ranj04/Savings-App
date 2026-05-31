@@ -2,8 +2,9 @@ package handler.goals;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonElement;
+import dao.AccountDao;
 import dao.GoalDao;
+import dto.AccountDto;
 import dto.GoalDto;
 import handler.AuthFilter;
 import handler.BaseHandler;
@@ -15,61 +16,57 @@ import response.RestApiAppResponse;
 
 /**
  * Create a goal under a savings account.
- * Request: { "name": "Europe", "targetAmount": 2000, "accountId": "<ObjectId>", "dueDateMillis": 0 }
+ * Request: { "accountName": "...", "goalName": "..." }
  */
 public class CreateGoalHandler implements BaseHandler {
+
     @Override
     public HttpResponseBuilder handleRequest(ParsedRequest request) {
-        var auth = AuthFilter.doFilter(request);
-        if (!auth.isLoggedIn) return new HttpResponseBuilder().setStatus(StatusCodes.UNAUTHORIZED);
-
-        // robust body parsing
-        JsonObject body = JsonParser.parseString(request.getBody()).getAsJsonObject();
-        ObjectId accountObjId = parseObjectId(body.get("accountId"));
-        String name = body.has("name") ? body.get("name").getAsString() : null;
-        Double target = body.has("targetAmount") && !body.get("targetAmount").isJsonNull()
-                ? body.get("targetAmount").getAsDouble() : null;
-
-        if (accountObjId == null || name == null || name.isBlank()) {
-            return new HttpResponseBuilder().setStatus(StatusCodes.BAD_REQUEST)
-                    .setBody(new RestApiAppResponse<>(false, null, "Invalid accountId or name"));
+        try {
+            AuthFilter.AuthResult auth = AuthFilter.doFilter(request);
+            if (!auth.isLoggedIn) {
+                return new HttpResponseBuilder().setStatus(StatusCodes.UNAUTHORIZED)
+                        .setBody(new RestApiAppResponse<>(false, "unauthorized"));
+            }
+            JsonObject body = JsonParser.parseString(request.getBody()).getAsJsonObject();
+            String accountName = body.has("accountName") ? body.get("accountName").getAsString() : null;
+            String goalName = body.has("goalName") ? body.get("goalName").getAsString() : null;
+            if (accountName == null || accountName.isBlank() || goalName == null || goalName.isBlank()) {
+                return new HttpResponseBuilder().setStatus(StatusCodes.BAD_REQUEST)
+                        .setBody(new RestApiAppResponse<>(false, "missing accountName/goalName"));
+            }
+            AccountDto account = AccountDao.getInstance().findByNameForUser(accountName, auth.userName);
+            if (account == null) {
+                return new HttpResponseBuilder().setStatus(StatusCodes.NOT_FOUND)
+                        .setBody(new RestApiAppResponse<>(false, "account not found"));
+            }
+            GoalDto g = new GoalDto();
+            g.userName = auth.userName;
+            g.accountId = new ObjectId(account.getUniqueId());
+            g.name = goalName;
+            g.createdAt = System.currentTimeMillis();
+            try {
+                GoalDao.getInstance().put(g);
+                JsonObject data = new JsonObject();
+                data.addProperty("accountName", accountName);
+                data.addProperty("goalName", goalName);
+                return new HttpResponseBuilder().setStatus(StatusCodes.CREATED)
+                        .setBody(new RestApiAppResponse<>(true, data, null));
+            } catch (Exception e) {
+                if (e.getMessage() != null && e.getMessage().toLowerCase().contains("duplicate key")) {
+                    JsonObject data = new JsonObject();
+                    data.addProperty("duplicate", true);
+                    return new HttpResponseBuilder().setStatus(StatusCodes.OK)
+                            .setBody(new RestApiAppResponse<>(true, data, null));
+                }
+                e.printStackTrace();
+                return new HttpResponseBuilder().setStatus(StatusCodes.INTERNAL_SERVER_ERROR)
+                        .setBody(new RestApiAppResponse<>(false, "internal error"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new HttpResponseBuilder().setStatus(StatusCodes.INTERNAL_SERVER_ERROR)
+                    .setBody(new RestApiAppResponse<>(false, "internal error"));
         }
-
-        // create goal
-        GoalDto g = new GoalDto();
-        g.userName = auth.userName;
-        g.accountId = accountObjId;
-        g.name = name;
-        g.targetAmount = target;
-        g.allocatedAmount = 0.0;
-        g.createdAt = System.currentTimeMillis();
-        GoalDao.getInstance().put(g);
-
-        // response
-        JsonObject out = new JsonObject();
-        out.addProperty("_id", g.id.toHexString());
-        out.addProperty("userName", g.userName);
-        out.addProperty("accountId", g.accountId.toHexString());
-        out.addProperty("name", g.name);
-        out.addProperty("allocatedAmount", g.allocatedAmount);
-        if (g.targetAmount != null) out.addProperty("targetAmount", g.targetAmount);
-        out.addProperty("createdAt", g.createdAt);
-
-        return new HttpResponseBuilder().setStatus(StatusCodes.OK)
-                .setBody(new RestApiAppResponse<>(true, out, null));
-    }
-
-    private static ObjectId parseObjectId(JsonElement el) {
-        if (el == null || el.isJsonNull()) return null;
-        if (el.isJsonPrimitive()) {
-            String s = el.getAsString();
-            if (s != null && s.matches("^[0-9a-fA-F]{24}$")) return new ObjectId(s);
-            return null;
-        }
-        if (el.isJsonObject() && el.getAsJsonObject().has("$oid")) {
-            String s = el.getAsJsonObject().get("$oid").getAsString();
-            if (s != null && s.matches("^[0-9a-fA-F]{24}$")) return new ObjectId(s);
-        }
-        return null;
     }
 }

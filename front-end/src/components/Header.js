@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getUsername } from '../api/whoami';
 
 export function useUsername() {
   const [username, setUsername] = useState('');
@@ -6,26 +7,8 @@ export function useUsername() {
   useEffect(() => {
     const ac = new AbortController();
     (async () => {
-      try {
-        const res = await fetch('/auth/whoami', { credentials: 'include', signal: ac.signal });
-        if (!res.ok) throw new Error(`whoami ${res.status}`);
-        const data = await res.json();
-        
-        if (data.success === false) {
-          console.error('Failed to get username:', data.message);
-          if (!ac.signal.aborted) { setUsername(''); }
-          return;
-        }
-        
-        // Accept either userName or username shapes
-        const name = data.userName ?? data.username ?? null;
-        if (name && !ac.signal.aborted) { setUsername(name); }
-      } catch (error) {
-        if (!ac.signal.aborted) { 
-          console.error('Error getting username:', error);
-          setUsername(''); 
-        }
-      }
+      const name = await getUsername(ac.signal);
+      if (!ac.signal.aborted) setUsername(name);
     })();
     return () => ac.abort();
   }, []);
@@ -33,40 +16,16 @@ export function useUsername() {
   return username;
 }
 
-export default function Header() {
-  const [user, setUser] = useState(null);
+export default function Header({ titleOverride }) {
+  const user = useUsername();
 
-  useEffect(() => {
-    const ac = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch('/auth/whoami', { credentials: 'include', signal: ac.signal });
-        if (!res.ok) throw new Error('not authed');
-        const data = await res.json();
-        
-        if (data.success === false) {
-          console.error('Failed to get user data:', data.message);
-          if (!ac.signal.aborted) { setUser(null); }
-          return;
-        }
-        
-        if (!ac.signal.aborted) {
-          setUser(data.userName ?? data.username ?? null);
-        }
-      } catch (error) {
-        if (!ac.signal.aborted) { 
-          console.error('Error getting user data:', error);
-          setUser(null); 
-        }
-      }
-    })();
-    return () => ac.abort();
-  }, []);
+  // Use titleOverride if provided, otherwise fall back to default logic
+  const title = titleOverride || (user ? `${user}'s Savings App` : 'Savings App');
 
   return (
     <header className="app-header">
       <div className="app-brand">
-        <div className="brand-title">{user ? `${user}'s Savings App` : 'Savings App'}</div>
+        <div className="brand-title">{title}</div>
         <div className="brand-tag">helping you achieve your financial goals!</div>
       </div>
       <nav className="nav-actions">

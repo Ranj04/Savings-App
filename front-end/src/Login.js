@@ -107,24 +107,21 @@ export default function Login() {
     if (r.ok) {
       // remember who is logged in for later use then hard redirect
       try { localStorage.setItem('userName', userName); } catch {}
-      setMsg({ type: "success", text: "Login successful! Redirecting..." });
       
-      // Use a shorter timeout and add error handling
-      setTimeout(() => {
+      // Redirect immediately without showing success message
+      try {
+        console.log('Redirecting to /home...');
+        window.location.href = '/home';
+      } catch (redirectError) {
+        console.error('Redirect failed:', redirectError);
+        // Fallback: try using window.location.replace
         try {
-          console.log('Redirecting to /home...');
-          window.location.href = '/home';
-        } catch (redirectError) {
-          console.error('Redirect failed:', redirectError);
-          // Fallback: try using window.location.replace
-          try {
-            window.location.replace('/home');
-          } catch (fallbackError) {
-            console.error('Fallback redirect also failed:', fallbackError);
-            setMsg({ type: "error", text: "Login successful but redirect failed. Please navigate to /home manually." });
-          }
+          window.location.replace('/home');
+        } catch (fallbackError) {
+          console.error('Fallback redirect also failed:', fallbackError);
+          setMsg({ type: "error", text: "Login successful but redirect failed. Please navigate to /home manually." });
         }
-      }, 500); // Reduced from 1000ms to 500ms
+      }
     } else {
       console.error('Login failed:', r);
       setMsg({ type: "error", text: r.data?.message || r.error || "Login failed. Check your credentials." });
@@ -134,7 +131,7 @@ export default function Login() {
   return (
     <div className="auth-wrapper">
       <div className="card card--auth">
-        <h1 style={{ textAlign: 'center' }}>Banking App</h1>
+        <h1 style={{ textAlign: 'center' }}>Savings App</h1>
         <p className="sub" style={{ textAlign: 'center' }}>Sign in or create your account to start tracking your savings today!</p>
 
         <div className="field">
@@ -165,17 +162,6 @@ export default function Login() {
         {msg.text && (
           <div className={`alert ${msg.type === "success" ? "success" : "error"}`}>
             {msg.text}
-            {msg.type === "success" && (
-              <div style={{ marginTop: '10px' }}>
-                <button 
-                  className="button" 
-                  onClick={() => window.location.href = '/home'}
-                  style={{ fontSize: '0.9em', padding: '5px 10px' }}
-                >
-                  Go to Home Page
-                </button>
-              </div>
-            )}
           </div>
         )}
 

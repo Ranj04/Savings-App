@@ -15,11 +15,13 @@ public class CustomParser {
         result.setPath(parts[0]);
 
         if (parts.length == 2) {
-            System.out.println(parts[1]);
             String[] queryParts = parts[1].split("&");
-            for (int i = 0; i < queryParts.length; i++) {
-                String[] pair = queryParts[i].split("=");
-                result.setQueryParam(pair[0], pair[1]);
+            for (String queryPart : queryParts) {
+                if (queryPart.isEmpty()) {
+                    continue;
+                }
+                String[] pair = queryPart.split("=", 2); // tolerate keys with no '='
+                result.setQueryParam(pair[0], pair.length > 1 ? pair[1] : "");
             }
         }
 
@@ -27,22 +29,11 @@ public class CustomParser {
         boolean emptyLine = false;
         for (String line : lines) {
             if (line.contains(":") && !emptyLine) {
-                String[] headerParts = line.split(":");
+                String[] headerParts = line.split(":", 2); // only split on the first ':'
                 String key = headerParts[0].trim();
                 String value = headerParts[1].trim();
+                // setHeaderValue also parses the Cookie header into the cookie map.
                 result.setHeaderValue(key, value);
-
-                if (key.equalsIgnoreCase("cookie")) {
-                    String[] cookieParts = value.split(";");
-                    for (String cookiePart : cookieParts) {
-                        String part = cookiePart.trim();
-                        if (part.isEmpty()) continue;
-                        String[] kv = part.split("=", 2); // split on first '='
-                        String cKey = kv[0].trim();
-                        String cVal = kv.length > 1 ? kv[1] : "";
-                        result.setCookieValue(cKey, cVal); // stores "auth", not " auth"
-                    }
-                }
             }
             if (line.equals("")) {
                 emptyLine = true;
