@@ -25,4 +25,8 @@ COPY --from=frontend /fe/build ./static
 ENV STATIC_DIR=/app/static
 ENV PORT=8080
 EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
+# Force TLS 1.2 for the Mongo connection. JDK 21 defaults to TLS 1.3, which
+# Atlas's shared-tier (M0/free) TLS terminator rejects with
+# "Received fatal alert: internal_error" during the handshake. Pinning the
+# client to TLS 1.2 is the documented remedy for that error against Atlas.
+CMD ["java", "-Djdk.tls.client.protocols=TLSv1.2", "-jar", "app.jar"]
