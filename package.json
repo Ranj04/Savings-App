@@ -6,9 +6,12 @@
   "scripts": {
     "start": "concurrently -k -n backend,frontend -c blue,green \"npm:start:backend\" \"npm:start:frontend\"",
     "dev": "npm start",
-    "start:backend": "mvn -q -f back-end/pom.xml compile exec:java",
-    "start:frontend": "npm --prefix front-end start",
-    "setup": "npm install && npm --prefix front-end install"
+    "start:backend": "sh scripts/run-backend.sh",
+    "start:frontend": "PORT=${WEB_PORT:-4000} npm --prefix front-end start",
+    "setup": "npm install && npm --prefix front-end install",
+    "docker": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

@@ -79,46 +79,44 @@ a single origin.
 
 ---
 
-## Quick start (development)
+## Run it — one command
 
-**Prerequisites**
+There are two single-command ways to run the whole app (frontend + backend) from
+one terminal. Pick based on whether you want zero setup or native hot-reload.
 
-- Node 18+ and npm
-- Java 21 (JDK) and Maven
-- MongoDB reachable at `mongodb://localhost:27017` (or set `MONGO_URL`)
+### Option A — Docker (recommended, zero setup)
 
-**Run both tiers with one command** (from the repo root):
-
-```bash
-npm run setup    # first time only: installs the runner + frontend deps
-npm start        # starts the Java backend (:1299) and the React dev server (:3000)
-```
-
-`npm start` uses [concurrently](https://www.npmjs.com/package/concurrently) to run:
-
-- `start:backend` → `mvn -f back-end/pom.xml compile exec:java` (runs `server.Server` on `:1299`)
-- `start:frontend` → the CRA dev server on `:3000`
-
-CRA's `proxy` setting (`front-end/package.json` → `http://localhost:1299`)
-forwards API calls to the backend, so the two run as one origin in dev. Press
-`Ctrl-C` once to stop both.
-
-**Run the tiers separately** (alternative):
+Brings up **MongoDB + backend + frontend** together. No Java, Node, or Mongo
+install needed — only Docker Desktop.
 
 ```bash
-# Backend — from back-end/
-mvn -q compile exec:java
-
-# Frontend — from front-end/
-npm install && npm start      # http://localhost:3000
+npm run docker          # = docker compose up --build
+# then open http://localhost:4000
 ```
 
-**Full stack in Docker** (includes MongoDB):
+Stop with `Ctrl-C`, then `npm run docker:down` (or `npm run docker:reset` to also
+wipe the database). nginx reverse-proxies the API to the backend, so the browser
+sees a single origin and the session cookie just works. The web port defaults to
+`4000` (to avoid clashing with other dev servers) and is overridable:
+`WEB_PORT=5000 npm run docker`.
+
+### Option B — Native dev (hot reload)
+
+Runs both tiers with [concurrently](https://www.npmjs.com/package/concurrently) in
+one terminal. Best for active development (CRA fast refresh + backend recompile).
 
 ```bash
-cp .env.example .env          # fill in Plaid keys only if you want bank linking
-docker compose up --build     # then open http://localhost:3000
+npm run setup           # first time only: installs runner + frontend deps
+npm run dev             # backend on :1299, React dev server on :4000
 ```
+
+- Requires **Node 18+** and a **Java 21 JDK** (`brew install openjdk@21`). The
+  backend launcher (`scripts/run-backend.sh`) auto-discovers the JDK, so you do
+  **not** need to set `JAVA_HOME` or edit your shell profile.
+- Requires a reachable **MongoDB** — either a local `mongod`, MongoDB Atlas (set
+  `MONGO_URL`), or just run `docker compose up mongo` for the database only.
+- CRA's `proxy` (`front-end/package.json` → `http://localhost:1299`) forwards API
+  calls to the backend, so the two run as one origin. `Ctrl-C` stops both.
 
 ---
 
@@ -228,14 +226,32 @@ rejection, and cross-account goal re-homing (which exercises the invariant).
 
 ## Deployment
 
-**Single-image (Railway / any container host)** — the root `Dockerfile` is a
-multi-stage build that compiles the React bundle, packages the backend as a fat
-jar, and runs the jar with `STATIC_DIR` pointing at the bundle. The Java server
-then serves both the API and the SPA on one origin (no CORS or proxy needed).
-`railway.json` builds this Dockerfile and health-checks `/health`.
+### Railway (recommended — deploys the whole app)
 
-**Multi-container (local full stack)** — `docker compose up --build` runs
-MongoDB, the backend, and an nginx-served frontend together.
+The root `Dockerfile` is a multi-stage build that compiles the React bundle,
+packages the backend as a fat jar, and runs the jar with `STATIC_DIR` pointing at
+the bundle — so the Java server serves **both the API and the SPA on one origin**
+(no CORS or proxy needed). `railway.json` builds this Dockerfile and health-checks
+`/health`.
+
+1. Push to GitHub, then in Railway: **New Project → Deploy from GitHub repo**.
+2. Add a database — use **MongoDB Atlas** (free M0) and allow `0.0.0.0/0` under
+   Network Access.
+3. Set service **Variables**: `MONGO_URL` (Atlas string), `MONGO_DB=savings`,
+   `APP_ENV=production`, and any Plaid keys. `PORT` is injected by Railway.
+4. **Settings → Networking → Generate Domain** — that URL is your app.
+
+Full walkthrough in **[DEPLOY.md](DEPLOY.md)**.
+
+### A note on Vercel
+
+Vercel hosts static sites and serverless functions — it **cannot run this Java
+backend** (a long-running custom HTTP server). So Vercel can only host the React
+frontend, which would then need a separately deployed backend (e.g. on Railway),
+a cross-origin setup (`SameSite=None; Secure` cookies + CORS), and `REACT_APP_*`
+config pointing at the backend URL. For a single-deploy app, **Railway is the
+right target** — it ships the whole thing as one service. Use Vercel only if you
+specifically want to split the frontend out.
 
 When serving over HTTPS, set `APP_ENV=production` so the session cookie is marked
 `Secure`.

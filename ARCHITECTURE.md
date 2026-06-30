@@ -232,10 +232,10 @@ session cookie "just works" with no CORS or proxy concerns. `railway.json`
 points at this Dockerfile and health-checks `/health`.
 
 **Multi-container (local full stack)** — `docker-compose.yml` runs MongoDB, the
-backend, and an nginx-served frontend separately (frontend on `:3000`).
+backend, and an nginx-served frontend separately (frontend on `:4000`).
 
 **Dev** — `npm start` at the repo root uses `concurrently` to run the backend
-(`:1299`) and the CRA dev server (`:3000`) together; CRA's `proxy` setting
+(`:1299`) and the CRA dev server (`:4000`) together; CRA's `proxy` setting
 forwards API calls to the backend so the two behave as one origin.
 
 ---

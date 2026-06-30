@@ -9,21 +9,26 @@ Prereqls: Docker Desktop.
 
 ```bash
 cp .env.example .env        # optional: add Plaid keys for bank linking
-docker compose up --build
+npm run docker              # = docker compose up --build
 ```
 
-Open **http://localhost:3000**. The nginx frontend reverse-proxies all API calls
-to the backend, so everything is one origin (no CORS, cookies just work).
+Open **http://localhost:4000**. The nginx frontend reverse-proxies all API calls
+to the backend, so everything is one origin (no CORS, cookies just work). The web
+port defaults to `4000` to avoid clashing with other local dev servers; override
+it with `WEB_PORT=5000 npm run docker`.
 
-To stop: `Ctrl-C`, then `docker compose down` (add `-v` to also wipe the DB).
+To stop: `Ctrl-C`, then `npm run docker:down` (or `npm run docker:reset` to also
+wipe the DB).
 
 ### Without Docker (dev mode)
 
 ```bash
 npm run setup     # installs the runner + frontend deps
-npm start         # backend on :1299, React dev server on :3000
+npm run dev       # backend on :1299, React dev server on :4000
 ```
-Requires a local MongoDB (`mongodb://localhost:27017`) and Java 21 + Maven.
+Requires Node 18+, a Java 21 JDK (`brew install openjdk@21` — the launcher finds
+it automatically, no `JAVA_HOME` needed), and a reachable MongoDB (local,
+Atlas via `MONGO_URL`, or `docker compose up mongo` for just the database).
 
 ## 2. Enable bank linking (Plaid)
 

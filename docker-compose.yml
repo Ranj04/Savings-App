@@ -1,7 +1,7 @@
 # One-command full stack: MongoDB + Java backend + nginx-served React frontend.
 #   cp .env.example .env   (fill in Plaid keys if you want bank linking)
 #   docker compose up --build
-# Then open http://localhost:3000
+# Then open http://localhost:4000  (override with WEB_PORT=5000 docker compose up)
 services:
   mongo:
     image: mongo:7
@@ -28,8 +28,10 @@ services:
   frontend:
     build: ./front-end
     restart: unless-stopped
+    # Host port is overridable to avoid clashing with other local dev servers:
+    #   WEB_PORT=5000 docker compose up
     ports:
-      - "3000:80"
+      - "${WEB_PORT:-4000}:80"
     depends_on:
       - backend
 
