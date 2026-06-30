@@ -22,9 +22,12 @@ public class RepayHandler implements BaseHandler{
         TransactionDao transactionDao = TransactionDao.getInstance();
         HttpResponseBuilder res = new HttpResponseBuilder();
 
-        Document doc = new Document("hash", "hash");
         UserDao userDao = UserDao.getInstance();
-        var userRes = userDao.query(doc);
+        var userRes = userDao.query(new Document("userName", authResult.userName));
+        if (userRes.isEmpty()) {
+            res.setStatus("User not found");
+            return res;
+        }
 
         transactionDto.setUserId(userRes.get(0).getUserName());
 

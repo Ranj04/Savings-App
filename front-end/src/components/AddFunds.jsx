@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 
 const oid = (a) => a?._id || a?.id || '';
@@ -12,19 +12,20 @@ export default function AddFunds({ onChange }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
-  async function loadAccounts() {
+  const loadAccounts = useCallback(async () => {
     try {
       const r = await api('/accounts/listWithAllocations');
       const d = await r.json();
       const list = (Array.isArray(d?.data) ? d.data : []).filter((a) => a.source !== 'plaid');
       setAccounts(list);
-      if (!accountId && list[0]) setAccountId(oid(list[0]));
+      // Default to the first account only if nothing is selected yet.
+      setAccountId((prev) => prev || (list[0] ? oid(list[0]) : ''));
     } catch (e) {
       // ignore; selector just stays empty
     }
-  }
+  }, []);
 
-  useEffect(() => { loadAccounts(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { loadAccounts(); }, [loadAccounts]);
 
   async function submit() {
     const amt = Number(amount);

@@ -1,207 +1,264 @@
-## Banking Application - Spending and Savings Goal Tracker
+# Savings App
 
-# Banking App
+A full-stack personal-savings application built around a **savings-envelope
+model**: money lives in accounts, and you "set aside" portions of it into named
+goals without ever moving it out of the account. Every balance operation is
+atomic and concurrency-safe, so usable funds and goal allocations can never drift
+out of sync.
 
-A full-stack demo banking app with a custom Java HTTP server + MongoDB backend and a React frontend.
-Features include authentication via signed cookie, deposits/withdrawals, transaction history, and Goals (savings targets & spending limits).
+The backend is a Java 21 service built directly on the JDK HTTP server (no Spring,
+no servlet container); the frontend is a React 18 single-page app. In production
+the Java server also serves the compiled React bundle, so the whole app runs from
+a single origin.
 
-# Tech Stack
+> Architecture deep-dive: **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
-Frontend: React (CRA), fetch API, cookie auth (credentials: 'include')
+---
 
-Backend: Java 21, custom HTTP server, Gson, MongoDB Java driver
+## Highlights
 
-Database: MongoDB
+- **Envelope budgeting** — accounts track `balance` and `sumAllocated`; goals
+  hold their slice of the allocation. `usable = balance − sumAllocated` is what
+  you can freely spend or set aside.
+- **Atomic, race-free money movement** — all transfers go through a single
+  `MoneyService` that uses MongoDB conditional updates (guard + mutation in one
+  operation) and compensates on partial failure, preserving the invariant
+  `sumAllocated == Σ(goal.allocatedAmount)`.
+- **Recurring auto-saves** — a background scheduler applies monthly "set aside"
+  routines and safely skips (then retries) when an account lacks usable funds.
+- **Bank linking via Plaid** — optionally link a real bank to sync balances;
+  access tokens are encrypted at rest.
+- **Secure sessions** — `HttpOnly`, `SameSite=Lax` cookie sessions with
+  PBKDF2-HMAC-SHA256 password hashing and transparent upgrade of legacy hashes.
+- **One-command dev and single-image deploy** — run both tiers together locally;
+  ship as one container that serves API + SPA on the same origin.
 
-Auth: HttpOnly cookie auth=<random session token> (SameSite=Lax in dev; SameSite=Lax + Secure in prod). Passwords are stored salted with PBKDF2-HMAC-SHA256.
+---
 
-Ports: Frontend dev on 3001 (via CRA), Backend on 1299 (proxy: http://localhost:1299)
+## Tech stack
 
-Project Structure
-front-end/
-  src/
-    App.js
-    pages/
-      Goals.js
-    Home.js
-    Login.js
-    api.js
-    Home.css
-  package.json   // "proxy": "http://localhost:1299"
+| Area | Choices |
+|------|---------|
+| Frontend | React 18 (Create React App), React Router 6, `fetch`, cookie auth |
+| Backend | Java 21, `com.sun.net.httpserver` HTTP server, Gson, MongoDB Java driver |
+| Database | MongoDB (local, Docker, or Atlas) |
+| Auth | `HttpOnly` session cookie + PBKDF2-HMAC-SHA256 password hashing |
+| Integrations | Plaid (sandbox by default) |
+| Tests | Backend: TestNG + Mockito · Frontend: Jest + React Testing Library |
+| Deploy | Docker (single-image or docker-compose), Railway |
 
-back-end/
-  src/main/java/
-    server/Server.java                // minimal HTTP server
-    request/CustomParser.java         // HTTP + Cookie parsing
-    response/HttpResponseBuilder.java
-    response/RestApiAppResponse.java
-    handler/
-      HandlerFactory.java
-      AuthFilter.java
-      LoginHandler.java
-      CreateUserHandler.java
-      CreateDepositHandler.java
-      WithdrawHandler.java
-      GetTransactionsHandler.java
-      // Goals & Spend (MVP)
-      goals/
-        CreateGoalHandler.java
-        ListGoalsHandler.java
-        ContributeGoalHandler.java
-        DeleteGoalHandler.java
-      spend/
-        LogSpendHandler.java
-    dao/
-      BaseDao.java
-      UserDao.java
-      TransactionDao.java
-      AuthDao.java
-      GoalDao.java
-      SpendDao.java
-    dto/
-      UserDto.java
-      TransactionDto.java
-      GoalDto.java
-      SpendDto.java
+---
 
-# Quick Start (Dev)
+## Repository layout
 
-Prereqs:
+```
+.
+├── back-end/                      # Java 21 API + static server
+│   ├── pom.xml
+│   └── src/main/java/
+│       ├── server/                # HTTP server, routing, static serving
+│       ├── handler/               # one class per endpoint (accounts/ goals/ routines/ plaid/)
+│       ├── service/               # MoneyService, RoutineScheduler
+│       ├── security/              # PasswordUtil (PBKDF2), TokenUtil, CryptoUtil
+│       ├── plaid/                 # Plaid client + account sync
+│       ├── dao/                   # BaseDao + per-collection DAOs, MongoConnection
+│       ├── dto/                   # document ↔ object mapping
+│       ├── request/ response/     # request parsing, response building
+│       └── src/test/java/         # TestNG + Mockito suite
+├── front-end/                     # React single-page app
+│   └── src/
+│       ├── index.js               # router (Login / Home / Goals / Accounts)
+│       ├── pages/ components/      # Accounts, Goals, QuickActions, AddFunds, Routines, ...
+│       └── api/client.js          # fetch wrapper (credentials + JSON)
+├── Dockerfile                     # single-image build (Java serves API + SPA)
+├── docker-compose.yml             # Mongo + backend + nginx frontend
+├── railway.json                   # Railway deploy config
+├── ARCHITECTURE.md
+└── package.json                   # root runner (concurrently)
+```
+
+---
+
+## Quick start (development)
+
+**Prerequisites**
 
 - Node 18+ and npm
-- Java 21 (or compatible JDK) and Maven
-- MongoDB running locally (default mongodb://localhost:27017)
+- Java 21 (JDK) and Maven
+- MongoDB reachable at `mongodb://localhost:27017` (or set `MONGO_URL`)
 
-## Run everything with one command (recommended)
+**Run both tiers with one command** (from the repo root):
 
-From the repository root, install once and then start both tiers together:
-
-```
-npm run setup    # installs the runner + the frontend dependencies (first time only)
-npm start        # starts the Java backend (port 1299) AND the React frontend (port 3000) together
+```bash
+npm run setup    # first time only: installs the runner + frontend deps
+npm start        # starts the Java backend (:1299) and the React dev server (:3000)
 ```
 
-`npm start` uses [concurrently](https://www.npmjs.com/package/concurrently) to launch:
+`npm start` uses [concurrently](https://www.npmjs.com/package/concurrently) to run:
 
-- `start:backend` → `mvn -f back-end/pom.xml compile exec:java` (runs `server.Server` on 1299)
-- `start:frontend` → `npm --prefix front-end start` (CRA dev server, proxies API calls to 1299)
+- `start:backend` → `mvn -f back-end/pom.xml compile exec:java` (runs `server.Server` on `:1299`)
+- `start:frontend` → the CRA dev server on `:3000`
 
-Press Ctrl-C once to stop both. The frontend's `proxy` setting in `front-end/package.json`
-forwards `/login`, `/accounts/...`, etc. to the backend, so the two run as one origin in dev.
+CRA's `proxy` setting (`front-end/package.json` → `http://localhost:1299`)
+forwards API calls to the backend, so the two run as one origin in dev. Press
+`Ctrl-C` once to stop both.
 
-## Run the tiers separately (alternative)
+**Run the tiers separately** (alternative):
 
-Backend only — from `back-end/`:
+```bash
+# Backend — from back-end/
+mvn -q compile exec:java
 
-```
-mvn -q compile exec:java        # or: mvn clean package, then run server.Server from your IDE
-```
-
-Frontend only — from `front-end/`:
-
-```
-npm install
-npm start                       # CRA dev server on http://localhost:3000
+# Frontend — from front-end/
+npm install && npm start      # http://localhost:3000
 ```
 
-`front-end/package.json` must contain:
+**Full stack in Docker** (includes MongoDB):
 
-"proxy": "http://localhost:1299"
+```bash
+cp .env.example .env          # fill in Plaid keys only if you want bank linking
+docker compose up --build     # then open http://localhost:3000
+```
 
-Environment & Config
-Cookies (Dev vs Prod)
+---
 
-Dev (HTTP localhost): SameSite=Lax; HttpOnly
+## Configuration
 
-Prod (HTTPS): SameSite=None; Secure; HttpOnly
+All values are optional for the core app; Plaid values are only needed for real
+bank linking. Copy `.env.example` to `.env`.
 
-Set an environment flag in backend (optional):
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PORT` | `1299` | Backend HTTP port |
+| `MONGO_URL` | `mongodb://localhost:27017` | MongoDB connection string |
+| `MONGO_DB` | `savings` | Database name |
+| `APP_ORIGIN` | `http://localhost:3000` | Allowed CORS origin for the SPA (dev) |
+| `APP_ENV` | _(unset)_ | Set to `production` to add the `Secure` cookie flag (HTTPS) |
+| `STATIC_DIR` | _(unset)_ | Directory of the built SPA; set in the single-image deploy |
+| `PLAID_CLIENT_ID` | _(unset)_ | Plaid client id |
+| `PLAID_SECRET` | _(unset)_ | Plaid secret |
+| `PLAID_ENV` | `sandbox` | Plaid environment |
+| `PLAID_TOKEN_KEY` | _(unset)_ | 32-byte key (base64) to encrypt Plaid tokens at rest |
 
-APP_ENV=production   # enables Secure cookie flags
+---
 
-Optional .env (Frontend)
+## API reference
 
-Not required, but you may store non-secret UI settings here.
+All endpoints exchange JSON. Every path except the public auth/health routes
+requires the session cookie (sent automatically by the browser with
+`credentials: 'include'`). A standard response is
+`{ "status": true, "data": ..., "message": ... }`.
 
-Core Endpoints
+### Auth
 
-All endpoints consume/produce JSON and require the auth cookie unless noted.
+| Method | Path | Body | Notes |
+|--------|------|------|-------|
+| POST | `/createUser` | `{ userName, password }` | Create an account |
+| POST | `/login` | `{ userName, password }` | Sets the `auth` session cookie |
+| POST | `/logout` | — | Clears the session cookie |
+| GET | `/auth/whoami` | — | Returns the current session identity |
 
-Auth
+### Accounts
 
-POST /createUser → { userName, password }
-Creates user and sets auth cookie.
+| Method | Path | Body | Notes |
+|--------|------|------|-------|
+| POST | `/accounts/create` | `{ name, initialBalance? }` | Create a savings account |
+| GET | `/accounts/list` | — | Basic account list |
+| GET | `/accounts/listWithAllocations` | — | Accounts with per-goal allocation breakdown |
+| POST | `/accounts/addFunds` | `{ accountId, amount }` | Record income (manual accounts only) |
+| POST | `/accounts/transfer` | `{ fromAccountId, toAccountId, amount, fromGoalId?, toGoalId? }` | Atomic transfer between accounts; optionally re-homes a goal allocation |
 
-POST /login → { userName, password }
-Validates and sets auth cookie.
+### Goals
 
-POST /logout → clears cookie (if implemented).
+| Method | Path | Body | Notes |
+|--------|------|------|-------|
+| POST | `/goals/create` | `{ accountName, goalName, targetAmount? }` | Create a savings goal under an account |
+| GET | `/goals/list` | — | Goals for the current user |
+| POST | `/goals/contribute` | `{ goalId, amount }` | Set aside usable money into a goal |
+| POST | `/goals/transfer` | `{ accountId, goalId, amount, transferToGoal }` | Move money between goals in an account |
+| POST | `/goals/delete` | `{ goalId }` | Delete a goal |
 
-Accounts / Transactions
+### Routines (recurring auto-save)
 
-GET /getTransactions → { data: Transaction[] }
+| Method | Path | Body |
+|--------|------|------|
+| POST | `/routines/create` | `{ accountId, goalId, amount, dayOfMonth }` |
+| GET | `/routines/list` | — |
+| POST | `/routines/run` | `{ routineId }` |
+| POST | `/routines/delete` | `{ routineId }` |
 
-POST /createDeposit → { amount }
+### Plaid (bank linking)
 
-POST /withdraw → { amount }
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/plaid/create_link_token` | Start a Plaid Link session |
+| POST | `/plaid/exchange_public_token` | Exchange the public token after linking |
+| POST | `/plaid/refresh` | Re-sync linked account balances |
 
-(Optional aliases) /transactions, /balance if you added them.
+---
 
-Goals (MVP)
+## The money model in one paragraph
 
-POST /goals/create
-Body:
+An account holds real money (`balance`) and a running total of money earmarked
+into goals (`sumAllocated`). What you can act on is `usable = balance −
+sumAllocated`. "Setting money aside" raises `sumAllocated` and a goal's
+`allocatedAmount` together; releasing reverses it. Because every change is an
+atomic conditional update in MongoDB — and two-document operations roll back the
+first step if the second fails — the system always satisfies
+`sumAllocated == Σ(goal.allocatedAmount)`, even under concurrent requests. See
+[ARCHITECTURE.md](ARCHITECTURE.md) for the full treatment.
 
-// Savings goal
-{ "type":"savings", "name":"Emergency Fund", "targetAmount": 1000, "dueDateMillis": 1754000000000 }
+---
 
-// Spending limit (tracked per month)
-{ "type":"spending", "name":"Food Budget", "category":"Food", "targetAmount": 300 }
+## Testing
 
+```bash
+# Backend (TestNG + Mockito) — from back-end/
+mvn test
 
-GET /goals/list
-Returns an array of:
+# Frontend (Jest + React Testing Library) — from front-end/
+npm test
+```
 
-{
-  "goal": { /* GoalDto */ },
-  "progressAmount": 120.00,
-  "percent": 40.0,
-  "periodLabel": "Aug 2025" // or "All time" for savings
-}
+The backend suite mocks the Mongo collections, so it runs without a live
+database. `MoneyService` is covered for the happy path, insufficient-funds
+rejection, and cross-account goal re-homing (which exercises the invariant).
 
+---
 
-POST /goals/contribute (savings only)
-{ "goalId":"<id>", "amount": 50.00, "note":"paycheck" }
+## Deployment
 
-POST /goals/delete
-{ "goalId":"<id>" }
+**Single-image (Railway / any container host)** — the root `Dockerfile` is a
+multi-stage build that compiles the React bundle, packages the backend as a fat
+jar, and runs the jar with `STATIC_DIR` pointing at the bundle. The Java server
+then serves both the API and the SPA on one origin (no CORS or proxy needed).
+`railway.json` builds this Dockerfile and health-checks `/health`.
 
-POST /spend/log (spending goals)
-{ "category":"Food", "amount": 12.75 }
+**Multi-container (local full stack)** — `docker compose up --build` runs
+MongoDB, the backend, and an nginx-served frontend together.
 
-Frontend Usage
+When serving over HTTPS, set `APP_ENV=production` so the session cookie is marked
+`Secure`.
 
-All authenticated fetch calls must include:
+---
 
-fetch('/endpoint', {
-  method: 'POST',                 // or GET
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(payload),  // omit for GET
-  credentials: 'include'
-});
+## Security notes
 
+- Passwords are stored as salted **PBKDF2-HMAC-SHA256** (120k iterations); legacy
+  unsalted SHA-256 hashes are accepted once and re-hashed on next login.
+- Sessions are opaque, unguessable tokens stored server-side with a 24-hour TTL.
+- The session cookie is `HttpOnly` and `SameSite=Lax` (CSRF defense), plus
+  `Secure` in production.
+- Static file serving normalizes paths and guards against directory traversal.
 
+---
 
-Common Issues & Fixes
-401 Unauthorized on deposit/withdraw
+## Troubleshooting
 
-Wrong backend: If response headers show x-powered-by: Express, you’re hitting a Node server by mistake.
-
-Kill anything on 3001 that isn’t CRA:
-
-netstat -ano | findstr :3001
-tasklist /FI "PID eq <PID>"
-taskkill /PID <PID> /F
-
-
-Backend must be Java on 1299; CRA proxies there.
+- **401 on protected calls** — make sure requests include `credentials:
+  'include'` and that you're hitting the Java backend (`:1299` in dev), not
+  another server. The CRA proxy must point at `http://localhost:1299`.
+- **Backend exits on boot with a Mongo error** — it fails fast (5s) when MongoDB
+  is unreachable; check `MONGO_URL` and that the database is running.
+- **Cookie not set in production** — confirm you're on HTTPS and that
+  `APP_ENV=production` is set so the `Secure` flag is applied.

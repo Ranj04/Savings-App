@@ -16,13 +16,11 @@ export default function GoalsPage() {
 
   const flash = useFlashMessage(3600);
 
-  // Add one-time console for debugging
-  React.useEffect(() => {
-    console.debug('whoami cookie present?', document.cookie.includes('auth='));
-  }, []);
+  // Lets handleAuthError trigger a retry without creating a useCallback cycle.
+  const reloadRef = React.useRef(() => {});
 
   // Handle 401 authentication errors locally without redirect
-  const handleAuthError = async (endpoint) => {
+  const handleAuthError = React.useCallback(async (endpoint) => {
     // Check session health without redirecting yet
     try {
       const who = await fetchWhoami();
@@ -34,21 +32,19 @@ export default function GoalsPage() {
         // transient/handler-level auth hiccup; show inline message and stay
         setError(`Could not load ${endpoint} right now. Retrying…`);
         // Optionally retry once after a delay
-        setTimeout(() => reload(), 3000);
+        setTimeout(() => reloadRef.current(), 3000);
         return false; // indicates transient error
       }
     } catch {
       // Network error during whoami check
       setError(`Could not load ${endpoint} right now. Retrying…`);
-      setTimeout(() => reload(), 3000);
+      setTimeout(() => reloadRef.current(), 3000);
       return false;
     }
-  };
-
-  React.useEffect(() => { reload(); }, []);
+  }, []);
 
   // --- reload(): normalize account ids robustly ---
-  async function reload() {
+  const reload = React.useCallback(async function reload() {
     setError(""); // Clear any previous errors
     
     try {
@@ -101,7 +97,11 @@ export default function GoalsPage() {
       console.error('Error loading goals:', error);
       setGoals([]);
     }
-  }
+  }, [handleAuthError]);
+
+  // Keep the retry ref pointed at the latest reload, then load once on mount.
+  React.useEffect(() => { reloadRef.current = reload; }, [reload]);
+  React.useEffect(() => { reload(); }, [reload]);
 
   // Helper function to check if a goal exists
   function goalExists(list, accountName, goalName) {
@@ -140,9 +140,15 @@ export default function GoalsPage() {
 
     const accountName = selected?.name || "Unknown Account";
     const goalName = name.trim();
+    const targetAmount = target.trim() === "" ? null : Number(target);
+
+    if (targetAmount != null && (!Number.isFinite(targetAmount) || targetAmount < 0)) {
+      flash.flash("error", "Target must be a non-negative number.");
+      return;
+    }
 
     try {
-      const result = await createGoalCore({ accountName, goalName });
+      const result = await createGoalCore({ accountName, goalName, targetAmount });
       
       if (result.authError) {
         if (result.isRealLogout) {
@@ -168,11 +174,11 @@ export default function GoalsPage() {
   }
 
   // Core goal creation logic
-  async function createGoalCore({ accountName, goalName }) {
+  async function createGoalCore({ accountName, goalName, targetAmount }) {
     const res = await api('/goals/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: { accountName, goalName },
+      body: targetAmount != null ? { accountName, goalName, targetAmount } : { accountName, goalName },
     });
     
     if (res.status === 401) {

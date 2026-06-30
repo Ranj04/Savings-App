@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 
 const oid = (x) => x?._id || x?.id || x?.uniqueId || x?.$oid || '';
@@ -15,7 +15,7 @@ export default function Routines({ onChange }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     try {
       const [rRes, aRes, gRes] = await Promise.all([
         api('/routines/list'),
@@ -30,13 +30,14 @@ export default function Routines({ onChange }) {
       setAccounts(accs);
       const gls = Array.isArray(gData?.data) ? gData.data : (Array.isArray(gData) ? gData : []);
       setGoals(gls);
-      if (!accountId && accs[0]) setAccountId(oid(accs[0]));
+      // Default to the first account only if nothing is selected yet.
+      setAccountId((prev) => prev || (accs[0] ? oid(accs[0]) : ''));
     } catch (e) {
       // ignore
     }
-  }
+  }, []);
 
-  useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   const goalsForAccount = goals.filter((g) => oid(g.accountId) === accountId || g.accountId === accountId);
 

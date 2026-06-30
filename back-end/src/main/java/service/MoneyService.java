@@ -133,6 +133,77 @@ public class MoneyService {
         return t;
     }
 
+    /**
+     * Move usable money from one account to another in the same user's space.
+     *
+     * <p>Optionally re-homes a goal allocation: when {@code fromGoalId} is given the
+     * money is first de-allocated from that goal (so it becomes usable before it
+     * leaves), and when {@code toGoalId} is given it is re-allocated into that goal
+     * on arrival. Every step uses the atomic conditional updates, and the source
+     * de-allocation is compensated if the debit cannot proceed — so the invariant
+     * {@code sumAllocated == sum(goal.allocatedAmount)} always holds for both accounts.
+     */
+    public TransactionDto transferBetweenAccounts(String user, ObjectId fromAccountId, ObjectId toAccountId,
+                                                  ObjectId fromGoalId, ObjectId toGoalId, double amount) {
+        requirePositive(amount);
+        if (fromAccountId.equals(toAccountId)) {
+            throw new MoneyException(400, "from and to cannot be the same");
+        }
+        if (accountDao.findByIdForUser(fromAccountId, user) == null
+                || accountDao.findByIdForUser(toAccountId, user) == null) {
+            throw new MoneyException(404, "Account not found");
+        }
+        if (fromGoalId != null) {
+            requireGoalInAccount(fromGoalId, fromAccountId, user);
+        }
+        if (toGoalId != null) {
+            requireGoalInAccount(toGoalId, toAccountId, user);
+        }
+
+        // Step 1: if the money is currently earmarked in a source goal, release it
+        // (goal and sumAllocated drop in lock-step) so it counts as usable.
+        if (fromGoalId != null) {
+            if (!goalDao.tryDecAllocated(fromGoalId, user, amount)) {
+                throw new MoneyException(400, "Source goal does not have that much set aside");
+            }
+            accountDao.releaseReservation(fromAccountId, user, amount);
+        }
+
+        // Step 2: atomically remove usable money from the source account.
+        if (!accountDao.tryDebitUsable(fromAccountId, user, amount)) {
+            if (fromGoalId != null) { // compensate the step-1 de-allocation
+                accountDao.tryReserve(fromAccountId, user, amount);
+                goalDao.incAllocated(fromGoalId, user, amount);
+            }
+            throw new MoneyException(400, "Insufficient usable funds");
+        }
+
+        // Step 3: land the money in the destination account.
+        accountDao.creditBalance(toAccountId, user, amount);
+
+        // Step 4: optionally earmark it into a destination goal.
+        if (toGoalId != null && accountDao.tryReserve(toAccountId, user, amount)) {
+            goalDao.incAllocated(toGoalId, user, amount);
+        }
+
+        // Step 5: log the outflow and inflow so each account's Recent Activity reads right.
+        TransactionDto out = new TransactionDto();
+        out.setUserId(user);
+        out.setTransactionType(TransactionType.Transfer);
+        out.setAmount(-amount);
+        out.setAccountId(fromAccountId.toHexString());
+        txnDao.put(out);
+
+        TransactionDto in = new TransactionDto();
+        in.setUserId(user);
+        in.setTransactionType(TransactionType.Transfer);
+        in.setAmount(amount);
+        in.setAccountId(toAccountId.toHexString());
+        txnDao.put(in);
+
+        return out;
+    }
+
     private TransactionDto logTxn(String user, TransactionType type, double amount,
                                   String accountId, String goalId) {
         TransactionDto t = new TransactionDto();
