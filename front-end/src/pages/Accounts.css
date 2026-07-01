@@ -27,7 +27,7 @@
 .accounts-create .select {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #e9f0f6;
+  color: #f2e8d2;
   padding: 10px 12px;
   border-radius: 10px;
   min-width: 220px;
@@ -117,7 +117,7 @@
   appearance: none;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.12);
-  color: #e9f0f6;
+  color: #f2e8d2;
   padding: 10px 40px 10px 12px;  /* room for chevron */
   border-radius: 12px;
   line-height: 1.2;
@@ -132,8 +132,8 @@
 }
 
 .select:focus {
-  border-color: rgba(56,189,248,0.45);
-  box-shadow: 0 0 0 3px rgba(56,189,248,0.18);
+  border-color: rgba(215,165,74,0.45);
+  box-shadow: 0 0 0 3px rgba(215,165,74,0.18);
 }
 
 /* custom chevron */
@@ -148,13 +148,13 @@
   background-size: 12px 12px;
   opacity: .85;
   /* white chevron svg */
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="%23E9F0F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="%23D7A54A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 }
 
 /* Try to style the dropdown list (browser support varies) */
 .select option {
-  background-color: #0e2330;   /* dark surface */
-  color: #e9f0f6;
+  background-color: #0c1a13;   /* dark surface */
+  color: #f2e8d2;
 }
 .select option:disabled { color: #97a6b2; }
 
@@ -171,7 +171,7 @@
 .btn-ghost {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.10);
-  color: #e9f0f6;
+  color: #f2e8d2;
 }
 .btn-ghost:hover { background: rgba(255,255,255,0.08); }
 
@@ -200,8 +200,8 @@
   left: 50%; top: -36px;
   transform: translateX(-50%);
   white-space: nowrap;
-  background: rgba(14, 35, 48, 0.95);
-  color: #e9f0f6;
+  background: rgba(16, 33, 25, 0.95);
+  color: #f2e8d2;
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 8px;
   padding: 6px 8px;
@@ -216,7 +216,7 @@
   left: 50%; top: -8px;
   transform: translateX(-50%);
   width: 10px; height: 10px;
-  background: rgba(14, 35, 48, 0.95);
+  background: rgba(16, 33, 25, 0.95);
   border-left: 1px solid rgba(255,255,255,0.12);
   border-top: 1px solid rgba(255,255,255,0.12);
   rotate: 45deg;

@@ -10,7 +10,7 @@ function StackedGoalBar({ balance, goals, account }) {
   if (account?.allocations && Array.isArray(account.allocations)) {
     const allocated = Number(account.sumAllocated || 0);
     const unallocated = Number(account.unallocated || Math.max(0, total - allocated));
-    const palette = ['#5AB0FF', '#FFAF5A', '#9A8CFF', '#58DDA3', '#FF6E91', '#C1D161', '#00C9C8'];
+    const palette = ['#D7A54A', '#86C0A1', '#CF7052', '#E8C06A', '#9DB17C', '#C98A5E', '#7FB0A0'];
 
     return (
       <div>
@@ -77,7 +77,7 @@ function StackedGoalBar({ balance, goals, account }) {
   const allocatedAmounts = goals.map(extractAllocated);
   const allocated = allocatedAmounts.reduce((a, b) => a + b, 0);
   const unallocated = Math.max(0, total - allocated);
-  const palette = ['#5AB0FF', '#FFAF5A', '#9A8CFF', '#58DDA3', '#FF6E91', '#C1D161', '#00C9C8'];
+  const palette = ['#D7A54A', '#86C0A1', '#CF7052', '#E8C06A', '#9DB17C', '#C98A5E', '#7FB0A0'];
 
   return (
     <div>

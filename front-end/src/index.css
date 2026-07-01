@@ -1,13 +1,167 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ============================================================================
+   Savings App — "Heirloom Ledger" design foundation
+   A warm archival aesthetic: pine-ink canvas, brass & living-sage accents,
+   a high-contrast Fraunces display serif over a Fragment Mono ledger hand.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=Instrument+Sans:wght@400;500;600;700&family=Fragment+Mono:ital@0;1&display=swap');
+
+:root {
+  /* Surfaces — deep, warm pine ink */
+  --bg:            #0a1510;
+  --bg-2:          #0d1c15;
+  --bg-elev:       #10241b;
+
+  /* Ink — aged parchment */
+  --ink:           #f2e8d2;
+  --ink-soft:      #d8cfbb;
+  --muted:         #93a291;   /* sage-grey */
+  --text:          var(--ink);
+  --text-muted:    var(--muted);
+
+  /* Accents */
+  --brass:         #d7a54a;   /* primary — struck brass */
+  --brass-hi:      #efc879;   /* highlight / focus */
+  --brass-deep:    #b07f2c;
+  --sage:          #86c0a1;   /* growth / positive money */
+  --sage-hi:       #a8dcc0;
+  --rust:          #cf6f4f;   /* danger — burnt sienna, not red */
+
+  /* Compatibility aliases (older class names reference these) */
+  --primary:       var(--brass);
+  --primary-600:   var(--brass-deep);
+  --accent:        var(--brass);
+  --accent-2:      var(--sage);
+  --success:       var(--sage);
+  --danger:        var(--rust);
+  --ring:          var(--brass-hi);
+
+  /* Lines, fills, depth */
+  --line:          rgba(242, 232, 210, 0.12);
+  --line-strong:   rgba(242, 232, 210, 0.22);
+  --surface:       rgba(242, 232, 210, 0.035);
+  --surface-2:     rgba(242, 232, 210, 0.06);
+  --border:        var(--line);
+  --bg-card:       linear-gradient(160deg, rgba(23, 44, 34, 0.72), rgba(12, 26, 19, 0.82));
+  --shadow:        0 24px 60px -28px rgba(0, 0, 0, 0.75), 0 2px 0 rgba(242,232,210,0.03) inset;
+  --radius:        16px;
+
+  /* Type */
+  --font-display:  'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body:     'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:     'Fragment Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg);
+  /* Layered atmosphere: a brass dawn up top, deep pine below. */
+  background-image:
+    radial-gradient(1200px 620px at 78% -12%, rgba(215, 165, 74, 0.14), transparent 60%),
+    radial-gradient(1000px 700px at 8% 4%, rgba(134, 192, 161, 0.10), transparent 55%),
+    radial-gradient(1400px 900px at 50% 118%, rgba(11, 33, 24, 0.9), transparent 60%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+  background-attachment: fixed;
+}
+
+/* Faint engraved ledger rule-lines + a soft grain, fixed behind everything. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    repeating-linear-gradient(180deg, rgba(242, 232, 210, 0.022) 0 1px, transparent 1px 34px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+#root { position: relative; z-index: 1; }
+
+code, .mono, .amt-pos, .amt-neg {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Typography ---- */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.5rem;
+  color: var(--ink);
+}
+h1 {
+  font-size: clamp(2rem, 1.4rem + 2.4vw, 3rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+h2 { font-size: clamp(1.35rem, 1.1rem + 1vw, 1.7rem); }
+h3 { font-size: 1.15rem; font-weight: 600; }
+
+a { color: var(--brass-hi); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+::selection { background: rgba(215, 165, 74, 0.28); color: var(--ink); }
+
+/* Brass ledger scrollbar */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--brass-deep), #7c5a1e);
+  border-radius: 999px;
+  border: 3px solid var(--bg);
+}
+
+/* ============================================================================
+   Choreographed page-load reveal — one orchestrated moment, staggered.
+   ========================================================================== */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(16px); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+@keyframes glowIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.page__inner > *,
+.home-container > *,
+.accounts-page > *,
+.auth-wrapper > * {
+  animation: riseIn 0.62s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+/* Staggered cascade */
+.page__inner > *:nth-child(1),
+.home-container > *:nth-child(1),
+.accounts-page > *:nth-child(1) { animation-delay: 0.04s; }
+.page__inner > *:nth-child(2),
+.home-container > *:nth-child(2),
+.accounts-page > *:nth-child(2) { animation-delay: 0.12s; }
+.page__inner > *:nth-child(3),
+.home-container > *:nth-child(3),
+.accounts-page > *:nth-child(3) { animation-delay: 0.20s; }
+.page__inner > *:nth-child(4),
+.home-container > *:nth-child(4),
+.accounts-page > *:nth-child(4) { animation-delay: 0.28s; }
+.page__inner > *:nth-child(5),
+.home-container > *:nth-child(5),
+.accounts-page > *:nth-child(5) { animation-delay: 0.36s; }
+.page__inner > *:nth-child(6) { animation-delay: 0.44s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

@@ -6,8 +6,16 @@ services:
   mongo:
     image: mongo:7
     restart: unless-stopped
+    command: ["mongod", "--quiet"]
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      # TCP probe avoids mongosh connection spam in logs; port open is enough for startup ordering.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/27017'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   backend:
     build: ./back-end
@@ -23,7 +31,8 @@ services:
       - PLAID_ENV=${PLAID_ENV:-sandbox}
       - PLAID_TOKEN_KEY=${PLAID_TOKEN_KEY:-}
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
 
   frontend:
     build: ./front-end
