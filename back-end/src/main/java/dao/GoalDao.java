@@ -27,13 +27,20 @@ public class GoalDao extends BaseDao<GoalDto> {
         } catch (Exception ignored) {
             // Index did not exist — nothing to do.
         }
-        // Enforce one goal name per (user, account).
-        collection.createIndex(
-            new Document("userName", 1)
-                .append("accountId", 1)
-                .append("name", 1),
-            new IndexOptions().unique(true)
-        );
+        // Enforce one goal name per (user, account). Best-effort: if Mongo is
+        // unreachable at boot, don't let an index build crash the whole server
+        // (it used to throw straight out of Server.main). The app still boots and
+        // serves /health; DB ops recover once Mongo is reachable.
+        try {
+            collection.createIndex(
+                new Document("userName", 1)
+                    .append("accountId", 1)
+                    .append("name", 1),
+                new IndexOptions().unique(true)
+            );
+        } catch (Exception e) {
+            System.err.println("[GoalDao] deferred unique-index creation (Mongo not ready): " + e.getMessage());
+        }
     }
 
     public static GoalDao getInstance() {
