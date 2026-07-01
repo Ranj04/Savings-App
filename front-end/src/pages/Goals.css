@@ -47,7 +47,7 @@
 .field input {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.08);
-  color: #f2e8d2;
+  color: #eef3fb;
   padding: 10px 12px;
   border-radius: 10px;
   outline: none;
@@ -61,23 +61,23 @@
   border: 1px solid transparent;
   cursor: pointer;
   background: rgba(255,255,255,0.06);
-  color: #f2e8d2;
+  color: #eef3fb;
   transition: transform 0.05s ease, background 0.2s ease, border-color 0.2s ease;
 }
 .btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.08); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-primary { background: rgba(215,165,74,0.15); border-color: rgba(215,165,74,0.35); }
-.btn-primary:hover { background: rgba(215,165,74,0.25); }
+.btn-primary { background: rgba(77,141,255,0.15); border-color: rgba(77,141,255,0.35); }
+.btn-primary:hover { background: rgba(77,141,255,0.25); }
 .btn-ghost   { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.10); }
 .btn-ghost:hover { background: rgba(255,255,255,0.08); }
-.btn-danger  { background: rgba(207,111,79,0.15); border-color: rgba(207,111,79,0.35); }
-.btn-danger:hover { background: rgba(207,111,79,0.25); }
+.btn-danger  { background: rgba(255,107,107,0.15); border-color: rgba(255,107,107,0.35); }
+.btn-danger:hover { background: rgba(255,107,107,0.25); }
 
 /* Inputs inside action rows */
 .input.small {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.08);
-  color: #f2e8d2;
+  color: #eef3fb;
   padding: 8px 10px;
   border-radius: 10px;
 }
@@ -91,8 +91,8 @@
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.14);
 }
-.chip--green { background: rgba(134,192,161,0.15); border-color: rgba(134,192,161,0.35); }
-.chip--blue  { background: rgba(215,165,74,0.15); border-color: rgba(215,165,74,0.35); }
+.chip--green { background: rgba(72,198,255,0.15); border-color: rgba(72,198,255,0.35); }
+.chip--blue  { background: rgba(77,141,255,0.15); border-color: rgba(77,141,255,0.35); }
 
 /* Progress bar */
 .progress {
@@ -104,7 +104,7 @@
 }
 .progress__bar {
   height: 100%;
-  background: linear-gradient(90deg, rgba(215,165,74,.9), rgba(134,192,161,.9));
+  background: linear-gradient(90deg, rgba(77,141,255,.9), rgba(72,198,255,.9));
 }
 
 /* Goal cards list */
@@ -176,7 +176,7 @@
   border: 1px solid rgba(255,255,255,0.18);
   padding-right: 40px; /* space for arrow */
   position: relative;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23D7A54A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 6l4 4 4-4'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%234D8DFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 6l4 4 4-4'/></svg>");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 16px;
@@ -188,10 +188,10 @@
 }
 .field select:focus {
   outline: none;
-  border-color: rgba(215,165,74,0.65);
-  box-shadow: 0 0 0 2px rgba(215,165,74,0.35);
+  border-color: rgba(77,141,255,0.65);
+  box-shadow: 0 0 0 2px rgba(77,141,255,0.35);
 }
-.field select option { color: #f2e8d2; }
+.field select option { color: #eef3fb; }
 .field select option:disabled { color: #7a8694; }
 
 /* Place create + summary side-by-side on row 1 */

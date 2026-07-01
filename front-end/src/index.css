@@ -1,49 +1,49 @@
 /* ============================================================================
-   Savings App — "Heirloom Ledger" design foundation
-   A warm archival aesthetic: pine-ink canvas, brass & living-sage accents,
-   a high-contrast Fraunces display serif over a Fragment Mono ledger hand.
+   Savings App — "Midnight Blueprint" design foundation
+   Obsidian canvas, electric cobalt→azure accents, ice-white ink, cyan money.
+   High-contrast Fraunces display over a Fragment Mono ledger hand.
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=Instrument+Sans:wght@400;500;600;700&family=Fragment+Mono:ital@0;1&display=swap');
 
 :root {
-  /* Surfaces — deep, warm pine ink */
-  --bg:            #0a1510;
-  --bg-2:          #0d1c15;
-  --bg-elev:       #10241b;
+  /* Surfaces — obsidian with a cool blue-black tint */
+  --bg:            #05070d;
+  --bg-2:          #080c16;
+  --bg-elev:       #0c1220;
 
-  /* Ink — aged parchment */
-  --ink:           #f2e8d2;
-  --ink-soft:      #d8cfbb;
-  --muted:         #93a291;   /* sage-grey */
+  /* Ink — ice / moonlight */
+  --ink:           #eef3fb;
+  --ink-soft:      #cdd7e8;
+  --muted:         #7f8ba3;   /* slate */
   --text:          var(--ink);
   --text-muted:    var(--muted);
 
   /* Accents */
-  --brass:         #d7a54a;   /* primary — struck brass */
-  --brass-hi:      #efc879;   /* highlight / focus */
-  --brass-deep:    #b07f2c;
-  --sage:          #86c0a1;   /* growth / positive money */
-  --sage-hi:       #a8dcc0;
-  --rust:          #cf6f4f;   /* danger — burnt sienna, not red */
+  --blue:          #4d8dff;   /* primary — electric cobalt */
+  --blue-hi:       #86b4ff;   /* highlight / focus */
+  --blue-deep:     #2a5fd6;
+  --cyan:          #48c6ff;   /* growth / positive money */
+  --cyan-hi:       #8fddff;
+  --red:           #ff6b6b;   /* danger / negative money */
 
   /* Compatibility aliases (older class names reference these) */
-  --primary:       var(--brass);
-  --primary-600:   var(--brass-deep);
-  --accent:        var(--brass);
-  --accent-2:      var(--sage);
-  --success:       var(--sage);
-  --danger:        var(--rust);
-  --ring:          var(--brass-hi);
+  --primary:       var(--blue);
+  --primary-600:   var(--blue-deep);
+  --accent:        var(--blue);
+  --accent-2:      var(--cyan);
+  --success:       var(--cyan);
+  --danger:        var(--red);
+  --ring:          var(--blue-hi);
 
   /* Lines, fills, depth */
-  --line:          rgba(242, 232, 210, 0.12);
-  --line-strong:   rgba(242, 232, 210, 0.22);
-  --surface:       rgba(242, 232, 210, 0.035);
-  --surface-2:     rgba(242, 232, 210, 0.06);
+  --line:          rgba(238, 243, 251, 0.11);
+  --line-strong:   rgba(238, 243, 251, 0.22);
+  --surface:       rgba(238, 243, 251, 0.035);
+  --surface-2:     rgba(238, 243, 251, 0.06);
   --border:        var(--line);
-  --bg-card:       linear-gradient(160deg, rgba(23, 44, 34, 0.72), rgba(12, 26, 19, 0.82));
-  --shadow:        0 24px 60px -28px rgba(0, 0, 0, 0.75), 0 2px 0 rgba(242,232,210,0.03) inset;
+  --bg-card:       linear-gradient(160deg, rgba(16, 26, 48, 0.72), rgba(7, 11, 22, 0.85));
+  --shadow:        0 24px 60px -28px rgba(0, 0, 0, 0.85), 0 2px 0 rgba(238,243,251,0.03) inset;
   --radius:        16px;
 
   /* Type */
@@ -64,16 +64,16 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg);
-  /* Layered atmosphere: a brass dawn up top, deep pine below. */
+  /* Layered atmosphere: a cobalt aurora up top, a cyan wash, deep navy below. */
   background-image:
-    radial-gradient(1200px 620px at 78% -12%, rgba(215, 165, 74, 0.14), transparent 60%),
-    radial-gradient(1000px 700px at 8% 4%, rgba(134, 192, 161, 0.10), transparent 55%),
-    radial-gradient(1400px 900px at 50% 118%, rgba(11, 33, 24, 0.9), transparent 60%),
+    radial-gradient(1200px 620px at 78% -12%, rgba(77, 141, 255, 0.18), transparent 60%),
+    radial-gradient(1000px 700px at 8% 4%, rgba(72, 198, 255, 0.10), transparent 55%),
+    radial-gradient(1400px 900px at 50% 118%, rgba(10, 16, 34, 0.9), transparent 60%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
   background-attachment: fixed;
 }
 
-/* Faint engraved ledger rule-lines + a soft grain, fixed behind everything. */
+/* Faint engraved blueprint rule-lines + a soft grain, fixed behind everything. */
 body::before {
   content: "";
   position: fixed;
@@ -81,8 +81,8 @@ body::before {
   pointer-events: none;
   z-index: 0;
   background-image:
-    repeating-linear-gradient(180deg, rgba(242, 232, 210, 0.022) 0 1px, transparent 1px 34px),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
+    repeating-linear-gradient(180deg, rgba(238, 243, 251, 0.022) 0 1px, transparent 1px 34px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.024'/%3E%3C/svg%3E");
   mix-blend-mode: overlay;
 }
 #root { position: relative; z-index: 1; }
@@ -109,15 +109,15 @@ h1 {
 h2 { font-size: clamp(1.35rem, 1.1rem + 1vw, 1.7rem); }
 h3 { font-size: 1.15rem; font-weight: 600; }
 
-a { color: var(--brass-hi); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a { color: var(--blue-hi); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 
-::selection { background: rgba(215, 165, 74, 0.28); color: var(--ink); }
+::selection { background: rgba(77, 141, 255, 0.3); color: var(--ink); }
 
-/* Brass ledger scrollbar */
+/* Blueprint scrollbar */
 ::-webkit-scrollbar { width: 11px; height: 11px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(var(--brass-deep), #7c5a1e);
+  background: linear-gradient(var(--blue-deep), #143a86);
   border-radius: 999px;
   border: 3px solid var(--bg);
 }
