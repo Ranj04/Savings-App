@@ -146,8 +146,9 @@ function QuickActions({ onAnyChange }) {
   async function doAction(endpoint, okMsg) {
     setLoading(true);
     try {
-      const body = endpoint === "/goals/transfer" 
-        ? { accountId, goalId, amount: amt, transferToGoal }
+      const body = endpoint === "/goals/transfer"
+        // Backend expects fromGoalId/toGoalId — not goalId/transferToGoal.
+        ? { accountId, fromGoalId: goalId, toGoalId: transferToGoal, amount: amt }
         : { accountId, goalId, amount: amt };
         
       const res = await api(endpoint, {

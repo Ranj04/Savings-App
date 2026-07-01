@@ -144,18 +144,25 @@ public class Server {
             return HandlerFactory.getHandler(req).handleRequest(req);
         }
 
-        // Path prefixes that are handled by the API (everything else is the SPA).
-        private static final String[] API_PREFIXES = {
-                "/health", "/login", "/logout", "/auth", "/createUser",
+        // Exact API endpoints — a bare path that *is* the API.
+        private static final Set<String> API_EXACT = Set.of(
+                "/health", "/login", "/logout", "/createUser",
                 "/getTransactions", "/transactions", "/deposit", "/withdraw",
                 "/createDeposit", "/createWithdraw", "/transfer", "/transferGoals",
-                "/goals", "/accounts", "/routines", "/plaid", "/savings",
-                "/getSavings", "/spend", "/balance", "/financing", "/repay"
+                "/savings", "/getSavings", "/balance", "/financing", "/repay");
+
+        // Prefix groups — API only when followed by a sub-path. This is what lets
+        // bare "/accounts" and "/goals" (which are ALSO client-side SPA routes)
+        // fall through to index.html instead of 404-ing on the API. Without it, a
+        // page refresh or nav to /accounts or /goals hits a non-existent handler.
+        private static final String[] API_PREFIX_GROUPS = {
+                "/auth", "/goals", "/accounts", "/routines", "/plaid", "/transactions", "/spend"
         };
 
         private static boolean isApiPath(String path) {
-            for (String p : API_PREFIXES) {
-                if (path.equals(p) || path.startsWith(p + "/")) return true;
+            if (API_EXACT.contains(path)) return true;
+            for (String p : API_PREFIX_GROUPS) {
+                if (path.startsWith(p + "/")) return true;
             }
             return false;
         }

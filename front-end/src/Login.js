@@ -61,9 +61,11 @@ export default function Login() {
     const r = await post("/createUser", { userName, password });
 
     if (r.ok) {
+      // The backend creates the user AND logs them in (sets the session cookie),
+      // so take them straight to the app instead of stranding them on this screen.
       try { localStorage.setItem('userName', userName); } catch {}
       setMsg({ type: "success", text: r.data?.message || "Account created" });
-      setPassword("");
+      window.location.href = '/home';
     } else {
       setMsg({ type: "error", text: r.data?.message || r.error || "Could not create account" });
     }
