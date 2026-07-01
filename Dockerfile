@@ -24,8 +24,11 @@ COPY --from=backend /be/target/banking-app-jar-with-dependencies.jar app.jar
 COPY --from=frontend /fe/build ./static
 ENV STATIC_DIR=/app/static
 ENV PORT=8080
+# Atlas shared-tier (M0) sits behind an SNI-routing proxy that rejects the JDK's
+# default TLS 1.3 handshake with "Received fatal alert: internal_error". Force
+# TLS 1.2 + SNI at JVM launch via JAVA_TOOL_OPTIONS: the JVM reads it before any
+# class loads (so it beats the SSL stack's init, unlike an in-process
+# System.setProperty) and it applies even if the platform overrides the CMD.
+ENV JAVA_TOOL_OPTIONS="-Djdk.tls.client.protocols=TLSv1.2 -Djsse.enableSNIExtension=true"
 EXPOSE 8080
-# TLS settings for the Atlas connection (SNI + TLS 1.2) are set in-process in
-# dao.MongoConnection's static initializer, so they apply regardless of how the
-# container is launched.
 CMD ["java", "-jar", "app.jar"]
