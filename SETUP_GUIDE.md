@@ -1,4 +1,4 @@
-# Savings App — Complete Setup & Deployment Guide
+# Personal Finance App — Complete Setup & Deployment Guide
 
 This walks you from "code on GitHub" to "live app on the internet with bank linking."
 You do **not** need Docker for the Railway deploy — Railway builds the image in the cloud.

@@ -71,7 +71,7 @@ public class PlaidClient {
         JsonObject user = new JsonObject();
         user.addProperty("client_user_id", clientUserId);
         p.add("user", user);
-        p.addProperty("client_name", "Savings App");
+        p.addProperty("client_name", "Personal Finance App");
         JsonArray products = new JsonArray();
         products.add("auth");
         p.add("products", products);

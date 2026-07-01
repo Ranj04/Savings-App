@@ -1,4 +1,4 @@
-# Running & Deploying the Savings App
+# Running & Deploying the Personal Finance App
 
 The app has three parts: a React frontend, a Java backend, and MongoDB. The
 easiest way to run all of them — locally or on a server — is Docker Compose.

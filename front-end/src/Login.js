@@ -102,7 +102,7 @@ export default function Login() {
   return (
     <div className="auth-wrapper">
       <div className="card card--auth">
-        <h1 style={{ textAlign: 'center' }}>Savings App</h1>
+        <h1 style={{ textAlign: 'center' }}>Personal Finance App</h1>
         <p className="sub" style={{ textAlign: 'center' }}>Sign in or create your account to start tracking your savings today!</p>
 
         <div className="field">

@@ -20,7 +20,7 @@ export default function Header({ titleOverride }) {
   const user = useUsername();
 
   // Use titleOverride if provided, otherwise fall back to default logic
-  const title = titleOverride || (user ? `${user}'s Savings App` : 'Savings App');
+  const title = titleOverride || (user ? `${user}'s Personal Finance App` : 'Personal Finance App');
 
   return (
     <header className="app-header">

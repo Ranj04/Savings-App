@@ -1,4 +1,4 @@
-# Savings App
+# Personal Finance App
 
 A full-stack personal-savings application built around a **savings-envelope
 model**: money lives in accounts, and you "set aside" portions of it into named

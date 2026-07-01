@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how the Savings App is put together: the request
+This document describes how the Personal Finance App is put together: the request
 lifecycle, the backend layers, the savings-envelope money model that keeps
 balances correct under concurrency, the data model, the frontend, and how the
 pieces are deployed.

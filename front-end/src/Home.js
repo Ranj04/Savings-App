@@ -17,7 +17,7 @@ export default function Home() {
 
     // Compute personalized title and welcome message
     const owner = username || '';
-    const pageTitle = owner ? `${possessive(owner)} Savings App` : 'Savings App';
+    const pageTitle = owner ? `${possessive(owner)} Personal Finance App` : 'Personal Finance App';
     const welcome = owner ? `Welcome, ${owner}` : 'Welcome, Friend';
 
     // Set document title
